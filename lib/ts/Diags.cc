@@ -138,6 +138,10 @@ Diags::Diags(const char *bdt, const char *bat, FILE *_diags_log_fp)
   activated_tags[DiagsTagType_Debug] = NULL;
   activated_tags[DiagsTagType_Action] = NULL;
   prefix_str = "";
+
+  // XXX REMOVE!! this is a test
+  BaseLogFile a("hello_world",false);
+  a.open_file();
 }
 
 Diags::~Diags()
