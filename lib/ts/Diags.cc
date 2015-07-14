@@ -101,8 +101,8 @@ SrcLoc::str(char *buf, int buflen) const
 //
 //////////////////////////////////////////////////////////////////////////////
 
-Diags::Diags(const char *bdt, const char *bat, FILE *_diags_log_fp)
-  : diags_log_fp(_diags_log_fp), magic(DIAGS_MAGIC), show_location(0), base_debug_tags(NULL), base_action_tags(NULL)
+Diags::Diags(const char *bdt, const char *bat, BaseLogFile *_base_log_file)
+  : base_log_file(_base_log_file), magic(DIAGS_MAGIC), show_location(0), base_debug_tags(NULL), base_action_tags(NULL)
 {
   int i;
 
@@ -131,6 +131,32 @@ Diags::Diags(const char *bdt, const char *bat, FILE *_diags_log_fp)
     config.outputs[i].to_diagslog = true;
   }
 
+  // get root
+  // ElevateAccess follows RAII design, the destructor will release root
+  ElevateAccess accesss(true);
+
+  // get file stream from BaseLogFile filedes
+  if (base_log_file && base_log_file->open_file() == BaseLogFile::LOG_FILE_NO_ERROR){
+    printf("fd=%d\n",base_log_file->m_fd);
+    diags_log_fp = fdopen(base_log_file->m_fd,"a+");
+    //ink_release_assert(diags_log_fp != NULL);
+    if (diags_log_fp) {
+      int status;
+      status = setvbuf(diags_log_fp, NULL, _IOLBF, 512);
+      if (status != 0) {
+        fclose(diags_log_fp);
+        diags_log_fp = NULL;
+        base_log_file->close_file();
+        delete base_log_file;
+        base_log_file = NULL;
+      }
+    }
+    else {
+      log_log_error("couldn't open diags log file\n");
+      perror("couldn't open diags log file");
+    }
+  }
+
   //////////////////////////////////////////////////////////////////
   // start off with empty tag tables, will build in reconfigure() //
   //////////////////////////////////////////////////////////////////
@@ -140,13 +166,23 @@ Diags::Diags(const char *bdt, const char *bat, FILE *_diags_log_fp)
   prefix_str = "";
 
   // XXX REMOVE!! this is a test
-  BaseLogFile a("hello_world",false);
+  /*
+  BaseLogFile a("var/log/trafficserver/hello_world", false);
   a.open_file();
+  int tfd = a.m_fd;
+  ssize_t w = write(tfd,"hello!\n",7);
+  printf("NUM BYTES WRITTEN = %d\n",w);
+  a.roll(1234L,12345L);
+  */
 }
 
 Diags::~Diags()
 {
+  if (diags_log_fp)
+    fclose(diags_log_fp);
   diags_log_fp = NULL;
+  delete base_log_file;
+  base_log_file = NULL;
 
   ats_free((void *)base_debug_tags);
   ats_free((void *)base_action_tags);
@@ -287,6 +323,7 @@ Diags::print_va(const char *debug_tag, DiagsLevel diags_level, const SrcLoc *loc
   lock();
   if (config.outputs[diags_level].to_diagslog) {
     if (diags_log_fp) {
+      //XXX need logic here to see if rolling is necessary
       va_list ap_scratch;
       va_copy(ap_scratch, ap);
       buffer = format_buf_w_ts;

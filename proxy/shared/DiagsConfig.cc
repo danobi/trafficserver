@@ -270,7 +270,6 @@ DiagsConfig::DiagsConfig(const char *filename, const char *tags, const char *act
   ats_scoped_str logpath;
 
   callbacks_established = false;
-  diags_log_fp = (FILE *)NULL;
   diags = NULL;
 
   ////////////////////////////////////////////////////////////////////
@@ -297,24 +296,9 @@ DiagsConfig::DiagsConfig(const char *filename, const char *tags, const char *act
 
   ink_filepath_make(diags_logpath, sizeof(diags_logpath), logpath, filename);
 
-  // open write append
-  // diags_log_fp = fopen(diags_logpath,"w");
-  diags_log_fp = fopen(diags_logpath, "a+");
-  if (diags_log_fp) {
-    int status;
-    status = setvbuf(diags_log_fp, NULL, _IOLBF, 512);
-    if (status != 0) {
-      fclose(diags_log_fp);
-      diags_log_fp = NULL;
-    }
-  }
-
-  diags = new Diags(tags, actions, diags_log_fp);
-  if (diags_log_fp == NULL) {
-    diags->print(NULL, DTA(DL_Warning), "couldn't open diags log file '%s', "
-                                        "will not log to this file",
-                 diags_logpath);
-  }
+  // Set up diags, FILE streams are opened in Diags constructor
+  base_log_file = new BaseLogFile(diags_logpath, false);
+  diags = new Diags(tags, actions, base_log_file);
   diags->print(NULL, DTA(DL_Status), "opened %s", diags_logpath);
 
   register_diags_callbacks();
@@ -368,9 +352,9 @@ DiagsConfig::register_diags_callbacks()
 
 DiagsConfig::~DiagsConfig()
 {
-  if (diags_log_fp) {
-    fclose(diags_log_fp);
-    diags_log_fp = NULL;
+  if (base_log_file) {
+    delete base_log_file;
+    base_log_file = NULL;
   }
   delete diags;
 }

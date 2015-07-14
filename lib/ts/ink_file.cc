@@ -508,11 +508,12 @@ ink_file_namemax(const char *path)
 #endif
 }
 
-int ink_fileperm_parse(const char * perms) 
+int
+ink_fileperm_parse(const char *perms)
 {
   if (perms && strlen(perms) == 9) {
     int re = 0;
-    char *c = (char*)perms;
+    char *c = (char *)perms;
     if (*c == 'r')
       re |= S_IRUSR;
     c++;

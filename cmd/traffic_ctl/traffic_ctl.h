@@ -28,6 +28,7 @@
 #include "mgmtapi.h"
 #include "ink_args.h"
 #include "I_Version.h"
+#include "BaseLogFile.h"
 
 #include <vector>
 

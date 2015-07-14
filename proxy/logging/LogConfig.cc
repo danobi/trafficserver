@@ -152,7 +152,7 @@ LogConfig::read_configuration_variables()
     max_space_mb_headroom = val;
   }
 
-  //TODO remove, this is redundant since BaseLogFile handles this as well
+  // TODO remove, this is redundant since BaseLogFile handles this as well
   ptr = REC_ConfigReadString("proxy.config.log.logfile_perm");
   int logfile_perm_parsed = ink_fileperm_parse(ptr);
   if (logfile_perm_parsed != -1)
