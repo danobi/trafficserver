@@ -37,10 +37,14 @@
 #include "ink_memory.h"
 #include "ink_string.h"
 #include "ink_file.h"
+#include "ink_cap.h"
+#include "ink_time.h"
 #include "SimpleTokenizer.h"
 
 #define LOGFILE_ROLLED_EXTENSION ".old"
 #define LOGFILE_SEPARATOR_STRING "_"
+#define LOGFILE_DEFAULT_PERMS (0644)
+#define LOGFILE_ROLL_MAXPATHLEN 4096
 
 typedef enum {
   LL_Debug = 0, // process does not die
@@ -103,8 +107,7 @@ public:
     _read_from_file();
   }
 
-  BaseMetaInfo(char *filename, time_t creation)
-    : _creation_time(creation), _flags(VALID_CREATION_TIME)
+  BaseMetaInfo(char *filename, time_t creation) : _creation_time(creation), _flags(VALID_CREATION_TIME)
   {
     _build_name(filename);
     _write_to_file();
@@ -146,6 +149,7 @@ public:
   {
     return (_flags & DATA_FROM_METAFILE ? true : false);
   }
+
   bool
   file_open_successful()
   {
@@ -171,7 +175,6 @@ public:
   static bool exists(const char *pathname);
   int open_file();
   void close_file();
-  void check_fd();
   void change_name(const char *new_name);
   void display(FILE *fd = stdout);
   const char *
@@ -210,6 +213,26 @@ private:
   BaseLogFile &operator=(const BaseLogFile &);
 
   // member functions
+  // XXX temp function: move to a better place
+  /*-------------------------------------------------------------------------
+    LogUtils::timestamp_to_str
+
+    This routine will convert a timestamp (seconds) into a short string,
+    of the format "%Y%m%d.%Hh%Mm%Ss".
+
+    Since the resulting buffer is passed in, this routine is thread-safe.
+    Return value is the number of characters placed into the array, not
+    including the NULL.
+    -------------------------------------------------------------------------*/
+
+  int timestamp_to_str_2(long timestamp, char *buf, int size)
+  {
+    static const char *format_str = "%Y%m%d.%Hh%Mm%Ss";
+    struct tm res;
+    struct tm *tms;
+    tms = ink_localtime_r((const time_t *)&timestamp, &res);
+    return strftime(buf, size, format_str, tms);
+  }
 
   // member variables
   char *m_name;
@@ -217,6 +240,4 @@ private:
   bool m_is_bootstrap;
   BaseMetaInfo *m_meta_info;
 };
-
-
 #endif
