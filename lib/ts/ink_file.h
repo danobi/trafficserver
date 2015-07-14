@@ -124,7 +124,7 @@ size_t ink_file_namemax(const char *path);
  Returns an integer bit field on success
  Returns -1 on failure
  */
-int ink_fileperm_parse(const char * perms);
+int ink_fileperm_parse(const char *perms);
 
 // Is the given path "."?
 static inline bool
