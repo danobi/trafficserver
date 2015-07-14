@@ -146,9 +146,10 @@ public:
 class Diags
 {
 public:
-  Diags(const char *base_debug_tags, const char *base_action_tags, FILE *_diags_log_fp = NULL);
+  Diags(const char *base_debug_tags, const char *base_action_tags, BaseLogFile *_base_log_file);
   ~Diags();
 
+  BaseLogFile *base_log_file;
   FILE *diags_log_fp;
   const unsigned int magic;
   volatile DiagsConfigState config;
