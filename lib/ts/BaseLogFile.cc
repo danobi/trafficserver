@@ -87,7 +87,94 @@ BaseLogFile::~BaseLogFile()
 int
 BaseLogFile::roll(long interval_start, long interval_end)
 {
-  return 0;
+  // First, let's see if a roll is even needed.
+  if (m_name == NULL || !BaseLogFile::exists(m_name)) {
+    log_log_trace("Roll not needed for %s; file doesn't exist\n", (m_name) ? m_name : "no_name\n");
+    return 0;
+  }
+  
+  // Read meta info if needed (if file was not opened)
+  if (!m_meta_info) {
+    m_meta_info = new BaseMetaInfo(m_name);
+  }
+
+  // Create the new file name, which consists of a timestamp and rolled
+  // extension added to the previous file name.  The timestamp format is
+  // ".%Y%m%d.%Hh%Mm%Ss-%Y%m%d.%Hh%Mm%Ss", where the two date/time values
+  // represent the starting and ending times for entries in the rolled
+  // log file.  In addition, we add the hostname.  So, the entire rolled
+  // format is something like:
+  //
+  //    "squid.log.mymachine.19980712.12h00m00s-19980713.12h00m00s.old"
+  char roll_name[LOGFILE_ROLL_MAXPATHLEN];
+  char start_time_ext[64];
+  char end_time_ext[64];
+  time_t start, end;
+
+  // Make sure the file is closed so we don't leak any descriptors.
+  close_file();
+
+  // Start with conservative values for the start and end bounds, then
+  // try to refine.
+  start = 0L;
+  end = (interval_end >= m_end_time) ? interval_end : m_end_time;
+
+  if (m_meta_info->data_from_metafile()) {
+    // If the metadata came from the metafile, this means that
+    // the file was preexisting, so we can't use m_start_time for
+    // our starting bounds.  Instead, we'll try to use the file
+    // creation time stored in the metafile (if it's valid and we can
+    // read it).  If all else fails, we'll use 0 for the start time.
+    m_meta_info->get_creation_time(&start);
+  } else {
+    // The logfile was not preexisting (normal case), so we'll use
+    // earlier of the interval start time and the m_start_time.
+    //
+    // note that m_start_time is not the time of the first
+    // transaction, but the time of the creation of the first log
+    // buffer used by the file. These times may be different,
+    // especially under light load, and using the m_start_time may
+    // produce overlapping filenames (the problem is that we have
+    // no easy way of keeping track of the timestamp of the first
+    // transaction
+    start = (m_start_time < interval_start) ? m_start_time : interval_start;
+  }
+
+  // Now that we have our timestamp values, convert them to the proper
+  // timestamp formats and create the rolled file name.
+  timestamp_to_str_2((long)start, start_time_ext, 64);
+  timestamp_to_str_2((long)end, end_time_ext, 64);
+  snprintf(roll_name, LOGFILE_ROLL_MAXPATHLEN, "%s%s.%s-%s%s", m_name, LOGFILE_SEPARATOR_STRING, start_time_ext,
+           end_time_ext, LOGFILE_ROLLED_EXTENSION);
+
+  // It may be possible that the file we want to roll into already
+  // exists.  If so, then we need to add a version tag to the rolled
+  // filename as well so that we don't clobber existing files.
+  int version = 1;
+  while (BaseLogFile::exists(roll_name)) {
+    log_log_trace("The rolled file %s already exists; adding version "
+         "tag %d to avoid clobbering the existing file.\n",
+         roll_name, version);
+    snprintf(roll_name, LOGFILE_ROLL_MAXPATHLEN, "%s%s.%s-%s.%d%s", m_name, LOGFILE_SEPARATOR_STRING, 
+             start_time_ext, end_time_ext, version, LOGFILE_ROLLED_EXTENSION);
+    version++;
+  }
+
+  // It's now safe to rename the file.
+  if (::rename(m_name, roll_name) < 0) {
+    log_log_error("Traffic Server could not rename logfile %s to %s, error %d: "
+            "%s.\n",
+            m_name, roll_name, errno, strerror(errno));
+    return 0;
+  }
+  // reset m_start_time
+  //
+  m_start_time = 0;
+  m_bytes_written = 0;
+
+  log_log_trace("The logfile %s was rolled to %s.\n", m_name, roll_name);
+
+  return 1;
 }
 
 /*
@@ -108,15 +195,25 @@ BaseLogFile::rolled_logfile(char *path)
   return false;
 }
 
+/*
+ * Returns if the provided file in 'pathname' exists or not
+ */
 bool
 BaseLogFile::exists(const char *pathname)
 {
-  return false;
+  ink_assert(pathname != NULL);
+  return (pathname && ::access(pathname, F_OK) == 0);
 }
 
+/*
+ * Opens the BaseLogFile and associated BaseMetaInfo on disk if it exists
+ * Returns relevant exit status
+ */
 int
 BaseLogFile::open_file()
 {
+  int flags, perms;
+
   if (is_open()) {
     return LOG_FILE_NO_ERROR;
   }
@@ -125,10 +222,17 @@ BaseLogFile::open_file()
     m_fd = STDOUT_FILENO;
     return LOG_FILE_NO_ERROR;
   }
-  //
+  else if (m_name && !strcmp(m_name, "stderr")) {
+    m_fd = STDERR_FILENO;
+    return LOG_FILE_NO_ERROR;
+  }
+
+  // get root
+  // ElevateAccess follows RAII design, the destructor will release root
+  ElevateAccess accesss(true);
+
   // Check to see if the file exists BEFORE we try to open it, since
   // opening it will also create it.
-  //
   bool file_exists = BaseLogFile::exists(m_name);
 
   if (file_exists) {
@@ -142,11 +246,12 @@ BaseLogFile::open_file()
   } else {
     // The log file does not exist, so we create a new MetaInfo object
     //  which will save itself to disk right away (in the constructor)
-    m_meta_info = new BaseMetaInfo(m_name, (long)time(0), m_signature);
+    m_meta_info = new BaseMetaInfo(m_name, (long)time(0) /*, m_signature*/);
   }
 
-  int flags, perms;
-
+  // open actual log file (not metainfo)
+  flags = O_WRONLY | O_APPEND | O_CREAT;
+  perms = LOGFILE_DEFAULT_PERMS; // TODO reload perms when possible
   log_log_trace("attempting to open %s\n", m_name);
   m_fd = ::open(m_name, flags, perms);
 
@@ -162,28 +267,33 @@ BaseLogFile::open_file()
   return LOG_FILE_NO_ERROR;
 }
 
+/*
+ * Closes actual log file, not metainfo
+ */
 void
 BaseLogFile::close_file()
 {
-  return;
+  if (is_open()) {
+    ::close(m_fd);
+    log_log_trace("BaseLogFile %s (fd=%d) is closed\n", m_name, m_fd);
+    m_fd = -1;
+  }
 }
 
-void
-BaseLogFile::check_fd()
-{
-  return;
-}
-
+/*
+ * Changes names of the actual log file (not metainfo)
+ */
 void
 BaseLogFile::change_name(const char *new_name)
 {
-  return;
+  ats_free(m_name);
+  m_name = ats_strdup(new_name);
 }
 
 void
 BaseLogFile::display(FILE *fd)
 {
-  return;
+  fprintf(fd, "Logfile: %s, %s\n", get_name(), (is_open()) ? "file is open" : "file is not open");
 }
 
 /*
@@ -240,10 +350,9 @@ BaseLogFile::log_log(LogLogPriorityLevel priority, const char *format, ...)
 }
 
 
-
 /****************************************************************************
 
-  MetaInfo methods
+  BaseMetaInfo methods
 
 *****************************************************************************/
 
@@ -282,7 +391,7 @@ BaseMetaInfo::_build_name(const char *filename)
 void
 BaseMetaInfo::_read_from_file()
 {
-  _flags |= DATA_FROM_METAFILE;        // mark attempt
+  _flags |= DATA_FROM_METAFILE; // mark attempt
   int fd = open(_filename, O_RDONLY);
   if (fd < 0) {
     log_log_error("Could not open metafile %s for reading: %s\n", _filename, strerror(errno));
@@ -306,10 +415,10 @@ BaseMetaInfo::_read_from_file()
             _log_object_signature = ink_atoi64(t);
             _flags |= VALID_SIGNATURE;
             log_log_trace("BaseMetaInfo::_read_from_file\n"
-                              "\tfilename = %s\n"
-                              "\tsignature string = %s\n"
-                              "\tsignature value = %" PRIu64 "\n",
-                  _filename, t, _log_object_signature);
+                          "\tfilename = %s\n"
+                          "\tsignature string = %s\n"
+                          "\tsignature value = %" PRIu64 "\n",
+                          _filename, t, _log_object_signature);
           }
         } else if (line_number == 1) {
           ink_release_assert(!"no panda support");
@@ -327,6 +436,10 @@ BaseMetaInfo::_read_from_file()
 void
 BaseMetaInfo::_write_to_file()
 {
+  // get root
+  // ElevateAccess follows RAII design, the destructor will release root
+  ElevateAccess accesss(true);
+
   // grab log file permissions
   int perms = 0644;
   // XXX implement permission resetting when core components come online
@@ -345,9 +458,11 @@ BaseMetaInfo::_write_to_file()
     log_log_error("Could not open metafile %s for writing: %s\n", _filename, strerror(errno));
     return;
   }
+  log_log_trace("Successfully opened metafile=%s\n", _filename);
 
   int n;
   if (_flags & VALID_CREATION_TIME) {
+    log_log_trace("Writing creation time to %s\n", _filename);
     n = snprintf(_buffer, BUF_SIZE, "creation_time = %lu\n", (unsigned long)_creation_time);
     // TODO modify this runtime check so that it is not an assertion
     ink_release_assert(n <= BUF_SIZE);
@@ -357,6 +472,7 @@ BaseMetaInfo::_write_to_file()
   }
 
   if (_flags & VALID_SIGNATURE) {
+    log_log_trace("Writing signature to %s\n", _filename);
     n = snprintf(_buffer, BUF_SIZE, "object_signature = %" PRIu64 "\n", _log_object_signature);
     // TODO modify this runtime check so that it is not an assertion
     ink_release_assert(n <= BUF_SIZE);
@@ -364,10 +480,10 @@ BaseMetaInfo::_write_to_file()
       log_log_error("Could not write object_signaure\n");
     }
     log_log_trace("BaseMetaInfo::_write_to_file\n"
-                      "\tfilename = %s\n"
-                      "\tsignature value = %" PRIu64 "\n"
-                      "\tsignature string = %s\n",
-          _filename, _log_object_signature, _buffer);
+                  "\tfilename = %s\n"
+                  "\tsignature value = %" PRIu64 "\n"
+                  "\tsignature string = %s\n",
+                  _filename, _log_object_signature, _buffer);
   }
 
   close(fd);
