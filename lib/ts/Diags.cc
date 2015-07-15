@@ -102,7 +102,7 @@ SrcLoc::str(char *buf, int buflen) const
 //////////////////////////////////////////////////////////////////////////////
 
 Diags::Diags(const char *bdt, const char *bat, BaseLogFile *_base_log_file)
-  : base_log_file(_base_log_file), magic(DIAGS_MAGIC), show_location(0), base_debug_tags(NULL), base_action_tags(NULL)
+  : magic(DIAGS_MAGIC), show_location(0), base_debug_tags(NULL), base_action_tags(NULL), rollcounter(0)
 {
   int i;
 
@@ -131,31 +131,10 @@ Diags::Diags(const char *bdt, const char *bat, BaseLogFile *_base_log_file)
     config.outputs[i].to_diagslog = true;
   }
 
-  // get root
+  // get root & set up BaseLogFile
   // ElevateAccess follows RAII design, the destructor will release root
   ElevateAccess accesss(true);
-
-  // get file stream from BaseLogFile filedes
-  if (base_log_file && base_log_file->open_file() == BaseLogFile::LOG_FILE_NO_ERROR){
-    printf("fd=%d\n",base_log_file->m_fd);
-    diags_log_fp = fdopen(base_log_file->m_fd,"a+");
-    //ink_release_assert(diags_log_fp != NULL);
-    if (diags_log_fp) {
-      int status;
-      status = setvbuf(diags_log_fp, NULL, _IOLBF, 512);
-      if (status != 0) {
-        fclose(diags_log_fp);
-        diags_log_fp = NULL;
-        base_log_file->close_file();
-        delete base_log_file;
-        base_log_file = NULL;
-      }
-    }
-    else {
-      log_log_error("couldn't open diags log file\n");
-      perror("couldn't open diags log file");
-    }
-  }
+  setup_baselogfile(_base_log_file);
 
   //////////////////////////////////////////////////////////////////
   // start off with empty tag tables, will build in reconfigure() //
@@ -164,25 +143,14 @@ Diags::Diags(const char *bdt, const char *bat, BaseLogFile *_base_log_file)
   activated_tags[DiagsTagType_Debug] = NULL;
   activated_tags[DiagsTagType_Action] = NULL;
   prefix_str = "";
-
-  // XXX REMOVE!! this is a test
-  /*
-  BaseLogFile a("var/log/trafficserver/hello_world", false);
-  a.open_file();
-  int tfd = a.m_fd;
-  ssize_t w = write(tfd,"hello!\n",7);
-  printf("NUM BYTES WRITTEN = %d\n",w);
-  a.roll(1234L,12345L);
-  */
 }
 
 Diags::~Diags()
 {
-  if (diags_log_fp)
-    fclose(diags_log_fp);
-  diags_log_fp = NULL;
-  delete base_log_file;
-  base_log_file = NULL;
+  if (base_log_file) {
+    base_log_file = NULL;
+    delete base_log_file;
+  }
 
   ats_free((void *)base_debug_tags);
   ats_free((void *)base_action_tags);
@@ -322,16 +290,18 @@ Diags::print_va(const char *debug_tag, DiagsLevel diags_level, const SrcLoc *loc
 
   lock();
   if (config.outputs[diags_level].to_diagslog) {
-    if (diags_log_fp) {
-      //XXX need logic here to see if rolling is necessary
+    if (base_log_file->m_fp) {
+      // if (should_roll()) {
+      // Note("Diags log file rolled\n");
+      //}
       va_list ap_scratch;
       va_copy(ap_scratch, ap);
       buffer = format_buf_w_ts;
-      vfprintf(diags_log_fp, buffer, ap_scratch);
+      vfprintf(base_log_file->m_fp, buffer, ap_scratch);
       {
         int len = strlen(buffer);
         if (len > 0 && buffer[len - 1] != '\n') {
-          putc('\n', diags_log_fp);
+          putc('\n', base_log_file->m_fp);
         }
       }
     }
@@ -587,4 +557,53 @@ Diags::error_va(DiagsLevel level, const char *file, const char *func, const int 
     }
     ink_fatal_va(format_string, ap2);
   }
+}
+
+/*
+ * Sets up and error handles the given BaseLogFile object to work
+ * with this instance of Diags
+ */
+void
+Diags::setup_baselogfile(BaseLogFile *blf)
+{
+  base_log_file = blf;
+
+  // get file stream from BaseLogFile filedes
+  if (blf && blf->open_file() == BaseLogFile::LOG_FILE_NO_ERROR) {
+    if (blf->m_fp) {
+      int status;
+      status = setvbuf(blf->m_fp, NULL, _IOLBF, 512);
+      if (status != 0) {
+        delete blf;
+        base_log_file = NULL;
+      }
+    } else {
+      log_log_error("Could not open diags log file: %s\n", strerror(errno));
+    }
+  }
+}
+
+/*
+ * Checks if the file on disk needs to be rolled, and does so if necessary
+ *
+ * This function will replace the current base_log_file object with a
+ * new one (if we choose to roll), as each BaseLogFile object logically
+ * represents one file on disk
+ *
+ * Returns true if rolled, false otherwise
+ */
+bool
+Diags::should_roll()
+{
+  // XXX use actual config values to roll
+  if (++rollcounter == 7) {
+    if (base_log_file->roll()) {
+      const char *oldname = ats_strdup(base_log_file->get_name());
+      delete base_log_file;
+      setup_baselogfile(new BaseLogFile(oldname, false));
+      rollcounter = 0;
+      return true;
+    }
+  }
+  return false;
 }

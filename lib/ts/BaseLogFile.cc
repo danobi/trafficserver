@@ -29,7 +29,7 @@
  */
 BaseLogFile::BaseLogFile(const char *name, bool is_bootstrap) : m_name(ats_strdup(name)), m_is_bootstrap(is_bootstrap)
 {
-  m_fd = -1;
+  m_fp = NULL;
   m_start_time = 0L;
   m_end_time = 0L;
   m_bytes_written = 0;
@@ -42,7 +42,7 @@ BaseLogFile::BaseLogFile(const char *name, bool is_bootstrap) : m_name(ats_strdu
  * This copy constructor creates a BaseLogFile based on a given copy.
  */
 BaseLogFile::BaseLogFile(const BaseLogFile &copy)
-  : m_fd(-1), m_start_time(0L), m_end_time(0L), m_bytes_written(0), m_name(ats_strdup(copy.m_name)),
+  : m_fp(NULL), m_start_time(0L), m_end_time(0L), m_bytes_written(0), m_name(ats_strdup(copy.m_name)),
     m_is_bootstrap(copy.m_is_bootstrap), m_meta_info(NULL)
 {
   log_log_trace("exiting BaseLogFile copy constructor, m_name=%s, this=%p\n", m_name, this);
@@ -83,6 +83,7 @@ BaseLogFile::~BaseLogFile()
  * bound.
 
  * Return 1 if file rolled, 0 otherwise
+ *XXX add hostname as an optional parameter
  */
 int
 BaseLogFile::roll(long interval_start, long interval_end)
@@ -92,7 +93,7 @@ BaseLogFile::roll(long interval_start, long interval_end)
     log_log_trace("Roll not needed for %s; file doesn't exist\n", (m_name) ? m_name : "no_name\n");
     return 0;
   }
-  
+
   // Read meta info if needed (if file was not opened)
   if (!m_meta_info) {
     m_meta_info = new BaseMetaInfo(m_name);
@@ -144,8 +145,8 @@ BaseLogFile::roll(long interval_start, long interval_end)
   // timestamp formats and create the rolled file name.
   timestamp_to_str_2((long)start, start_time_ext, 64);
   timestamp_to_str_2((long)end, end_time_ext, 64);
-  snprintf(roll_name, LOGFILE_ROLL_MAXPATHLEN, "%s%s.%s-%s%s", m_name, LOGFILE_SEPARATOR_STRING, start_time_ext,
-           end_time_ext, LOGFILE_ROLLED_EXTENSION);
+  snprintf(roll_name, LOGFILE_ROLL_MAXPATHLEN, "%s%s.%s-%s%s", m_name, LOGFILE_SEPARATOR_STRING, start_time_ext, end_time_ext,
+           LOGFILE_ROLLED_EXTENSION);
 
   // It may be possible that the file we want to roll into already
   // exists.  If so, then we need to add a version tag to the rolled
@@ -153,22 +154,22 @@ BaseLogFile::roll(long interval_start, long interval_end)
   int version = 1;
   while (BaseLogFile::exists(roll_name)) {
     log_log_trace("The rolled file %s already exists; adding version "
-         "tag %d to avoid clobbering the existing file.\n",
-         roll_name, version);
-    snprintf(roll_name, LOGFILE_ROLL_MAXPATHLEN, "%s%s.%s-%s.%d%s", m_name, LOGFILE_SEPARATOR_STRING, 
-             start_time_ext, end_time_ext, version, LOGFILE_ROLLED_EXTENSION);
+                  "tag %d to avoid clobbering the existing file.\n",
+                  roll_name, version);
+    snprintf(roll_name, LOGFILE_ROLL_MAXPATHLEN, "%s%s.%s-%s.%d%s", m_name, LOGFILE_SEPARATOR_STRING, start_time_ext, end_time_ext,
+             version, LOGFILE_ROLLED_EXTENSION);
     version++;
   }
 
   // It's now safe to rename the file.
   if (::rename(m_name, roll_name) < 0) {
     log_log_error("Traffic Server could not rename logfile %s to %s, error %d: "
-            "%s.\n",
-            m_name, roll_name, errno, strerror(errno));
+                  "%s.\n",
+                  m_name, roll_name, errno, strerror(errno));
     return 0;
   }
+
   // reset m_start_time
-  //
   m_start_time = 0;
   m_bytes_written = 0;
 
@@ -176,6 +177,32 @@ BaseLogFile::roll(long interval_start, long interval_end)
 
   return 1;
 }
+
+/*
+ * The more convienent rolling function. Intended use is for less
+ * critical logs such as diags.log or traffic.out, since _exact_ 
+ * timestamps may be less important
+ *
+ * The function calls roll(long,long) with these parameters:
+ * Start time is either 0 or creation time stored in the metafile,
+ * whichever is greater
+ *
+ * End time is the current time
+ *
+ * Returns 1 on success, 0 otherwise
+ */
+int
+BaseLogFile::roll()
+{
+  long start;
+  time_t now = time(NULL);
+
+  if (!m_meta_info->get_creation_time(&start))
+    start = 0L;
+
+  return roll(start, now);
+}
+
 
 /*
  * This function will return true if the given filename corresponds to a
@@ -212,18 +239,15 @@ BaseLogFile::exists(const char *pathname)
 int
 BaseLogFile::open_file()
 {
-  int flags, perms;
-
   if (is_open()) {
     return LOG_FILE_NO_ERROR;
   }
 
   if (m_name && !strcmp(m_name, "stdout")) {
-    m_fd = STDOUT_FILENO;
+    m_fp = stdout;
     return LOG_FILE_NO_ERROR;
-  }
-  else if (m_name && !strcmp(m_name, "stderr")) {
-    m_fd = STDERR_FILENO;
+  } else if (m_name && !strcmp(m_name, "stderr")) {
+    m_fp = stderr;
     return LOG_FILE_NO_ERROR;
   }
 
@@ -240,7 +264,6 @@ BaseLogFile::open_file()
       // This object must be fresh since it has not built its MetaInfo
       // so we create a new MetaInfo object that will read right away
       // (in the constructor) the corresponding metafile
-      //
       m_meta_info = new BaseMetaInfo(m_name);
     }
   } else {
@@ -250,20 +273,19 @@ BaseLogFile::open_file()
   }
 
   // open actual log file (not metainfo)
-  flags = O_WRONLY | O_APPEND | O_CREAT;
-  perms = LOGFILE_DEFAULT_PERMS; // TODO reload perms when possible
+  // TODO reload perms when possible
   log_log_trace("attempting to open %s\n", m_name);
-  m_fd = ::open(m_name, flags, perms);
+  m_fp = fopen(m_name, "a+");
 
-  if (m_fd < 0) {
+  if (!m_fp) {
     log_log_error("Error opening log file %s: %s\n", m_name, strerror(errno));
     return LOG_FILE_COULD_NOT_OPEN_FILE;
   }
 
   // set m_bytes_written to force the rolling based on filesize.
-  m_bytes_written = lseek(m_fd, 0, SEEK_CUR);
+  m_bytes_written = fseek(m_fp, 0, SEEK_CUR);
 
-  log_log_trace("BaseLogFile %s is now open (fd=%d)\n", m_name, m_fd);
+  log_log_trace("BaseLogFile %s is now open (fd=%d)\n", m_name, fileno(m_fp));
   return LOG_FILE_NO_ERROR;
 }
 
@@ -274,9 +296,9 @@ void
 BaseLogFile::close_file()
 {
   if (is_open()) {
-    ::close(m_fd);
-    log_log_trace("BaseLogFile %s (fd=%d) is closed\n", m_name, m_fd);
-    m_fd = -1;
+    fclose(m_fp);
+    log_log_trace("BaseLogFile %s is closed\n", m_name);
+    m_fp = NULL;
   }
 }
 

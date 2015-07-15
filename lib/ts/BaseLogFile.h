@@ -170,6 +170,7 @@ public:
   BaseLogFile(const char *name, bool is_bootstrap);
   BaseLogFile(const BaseLogFile &);
   ~BaseLogFile();
+  int roll();
   int roll(long interval_start, long interval_end);
   static bool rolled_logfile(char *path);
   static bool exists(const char *pathname);
@@ -182,11 +183,13 @@ public:
   {
     return m_name;
   }
+
   bool
   is_open()
   {
-    return (m_fd >= 0);
+    return (m_fp != NULL);
   }
+
   off_t
   get_size_bytes() const
   {
@@ -194,6 +197,7 @@ public:
     // return m_file_format != LOG_FILE_PIPE ? m_bytes_written : 0;
     return 0;
   };
+
   static void log_log(LogLogPriorityLevel priority, const char *format, ...);
 
   // member variables
@@ -202,7 +206,7 @@ public:
     LOG_FILE_COULD_NOT_OPEN_FILE,
   };
 
-  int m_fd;
+  FILE *m_fp;
   long m_start_time;
   long m_end_time;
   volatile uint64_t m_bytes_written;
@@ -225,7 +229,8 @@ private:
     including the NULL.
     -------------------------------------------------------------------------*/
 
-  int timestamp_to_str_2(long timestamp, char *buf, int size)
+  int
+  timestamp_to_str_2(long timestamp, char *buf, int size)
   {
     static const char *format_str = "%Y%m%d.%Hh%Mm%Ss";
     struct tm res;
