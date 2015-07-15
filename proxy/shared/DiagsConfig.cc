@@ -354,9 +354,5 @@ DiagsConfig::register_diags_callbacks()
 
 DiagsConfig::~DiagsConfig()
 {
-  if (base_log_file) {
-    delete base_log_file;
-    base_log_file = NULL;
-  }
   delete diags;
 }

@@ -92,7 +92,7 @@ main(int /* argc ATS_UNUSED */, const char **argv)
   crashlog_target target;
   pid_t parent = getppid();
 
-  BaseLogFile *base_log_file = new BaseLogFile("stderr",true);
+  BaseLogFile *base_log_file = new BaseLogFile("stderr", true);
   diags = new Diags("" /* tags */, "" /* actions */, base_log_file);
 
   appVersionInfo.setup(PACKAGE_NAME, "traffic_crashlog", PACKAGE_VERSION, __DATE__, __TIME__, BUILD_MACHINE, BUILD_PERSON, "");
