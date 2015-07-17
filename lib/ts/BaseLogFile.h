@@ -168,6 +168,7 @@ class BaseLogFile
 public:
   // member functions
   BaseLogFile(const char *name, bool is_bootstrap);
+  BaseLogFile(FILE *_fp, bool is_bootstrap);
   BaseLogFile(const BaseLogFile &);
   ~BaseLogFile();
   int roll();
@@ -230,7 +231,7 @@ private:
     -------------------------------------------------------------------------*/
 
   int
-  timestamp_to_str_2(long timestamp, char *buf, int size)
+  timestamp_to_str(long timestamp, char *buf, int size)
   {
     static const char *format_str = "%Y%m%d.%Hh%Mm%Ss";
     struct tm res;

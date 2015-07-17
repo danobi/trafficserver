@@ -146,10 +146,12 @@ public:
 class Diags
 {
 public:
-  Diags(const char *base_debug_tags, const char *base_action_tags, BaseLogFile *_base_log_file);
+  Diags(const char *base_debug_tags, const char *base_action_tags, BaseLogFile *_diags_log);
   ~Diags();
 
-  BaseLogFile *base_log_file;
+  BaseLogFile *diags_log;
+  BaseLogFile *stdout_log;
+  BaseLogFile *stderr_log;
   const unsigned int magic;
   volatile DiagsConfigState config;
   int show_location;
@@ -240,7 +242,7 @@ public:
 
   void deactivate_all(DiagsTagType mode = DiagsTagType_Debug);
 
-  bool should_roll();
+  bool should_roll_diagslog();
 
   const char *base_debug_tags;  // internal copy of default debug tags
   const char *base_action_tags; // internal copy of default action tags
@@ -249,7 +251,7 @@ private:
   mutable ink_mutex tag_table_lock; // prevents reconfig/read races
   DFA *activated_tags[2];           // 1 table for debug, 1 for action
   int rollcounter;
-  void setup_baselogfile(BaseLogFile *blf);
+  void setup_diagslog(BaseLogFile *blf);
   void
   lock() const
   {
@@ -296,7 +298,7 @@ dummy_debug(const char *tag, const char *fmt, ...)
 #define Note(...)                            \
   do {                                       \
     diags->error(DTA(DL_Note), __VA_ARGS__); \
-    diags->should_roll();                    \
+    diags->should_roll_diagslog();                    \
   } while (0)
 #define Warning(...) diags->error(DTA(DL_Warning), __VA_ARGS__)
 #define Error(...) diags->error(DTA(DL_Error), __VA_ARGS__)

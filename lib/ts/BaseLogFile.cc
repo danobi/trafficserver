@@ -39,11 +39,47 @@ BaseLogFile::BaseLogFile(const char *name, bool is_bootstrap) : m_name(ats_strdu
 }
 
 /*
+ * This consturctor creates a BaseLogFile based on a given file stream.
+ * Minimal error checking is done on provided FILE*, be careful
+ */
+BaseLogFile::BaseLogFile(FILE *_fp, bool is_bootstrap) : m_fp(_fp), m_is_bootstrap(is_bootstrap)
+{
+  bool is_redirected = ftell(_fp) >= 0 ? true : false;
+  if ((m_fp == stdout || m_fp == stderr) && is_redirected) {
+    char path[1024];
+    char result[1024];
+
+    // get the file descriptor
+    int fd = fileno(m_fp); 
+
+    // read out the link to our file descriptor
+    sprintf(path, "/proc/self/fd/%d", fd);
+    memset(result, 0, sizeof(result));
+    readlink(path, result, sizeof(result)-1);
+    m_name = ats_strdup(result);
+    log_log_trace("path = %s\n",result);
+  }
+  else if (m_fp == stdout && !is_redirected) {
+    m_name = ats_strdup("stdout");
+  }
+  else if (m_fp == stderr && !is_redirected) {
+    m_name = ats_strdup("stderr");
+  }
+
+  m_start_time = 0L;
+  m_end_time = 0L;
+  m_bytes_written = 0;
+  m_meta_info = NULL;
+
+  log_log_trace("exiting BaseLogFile file handle constructor, m_name=%s, this=%p\n", m_name, this);
+}
+
+/*
  * This copy constructor creates a BaseLogFile based on a given copy.
  */
-BaseLogFile::BaseLogFile(const BaseLogFile &copy)
-  : m_fp(NULL), m_start_time(0L), m_end_time(0L), m_bytes_written(0), m_name(ats_strdup(copy.m_name)),
-    m_is_bootstrap(copy.m_is_bootstrap), m_meta_info(NULL)
+  BaseLogFile::BaseLogFile(const BaseLogFile &copy)
+: m_fp(NULL), m_start_time(0L), m_end_time(0L), m_bytes_written(0), m_name(ats_strdup(copy.m_name)),
+  m_is_bootstrap(copy.m_is_bootstrap), m_meta_info(NULL)
 {
   log_log_trace("exiting BaseLogFile copy constructor, m_name=%s, this=%p\n", m_name, this);
 }
@@ -85,7 +121,7 @@ BaseLogFile::~BaseLogFile()
  * Return 1 if file rolled, 0 otherwise
  *XXX add hostname as an optional parameter
  */
-int
+  int
 BaseLogFile::roll(long interval_start, long interval_end)
 {
   // First, let's see if a roll is even needed.
@@ -143,10 +179,10 @@ BaseLogFile::roll(long interval_start, long interval_end)
 
   // Now that we have our timestamp values, convert them to the proper
   // timestamp formats and create the rolled file name.
-  timestamp_to_str_2((long)start, start_time_ext, 64);
-  timestamp_to_str_2((long)end, end_time_ext, 64);
+  timestamp_to_str((long)start, start_time_ext, 64);
+  timestamp_to_str((long)end, end_time_ext, 64);
   snprintf(roll_name, LOGFILE_ROLL_MAXPATHLEN, "%s%s.%s-%s%s", m_name, LOGFILE_SEPARATOR_STRING, start_time_ext, end_time_ext,
-           LOGFILE_ROLLED_EXTENSION);
+      LOGFILE_ROLLED_EXTENSION);
 
   // It may be possible that the file we want to roll into already
   // exists.  If so, then we need to add a version tag to the rolled
@@ -154,10 +190,10 @@ BaseLogFile::roll(long interval_start, long interval_end)
   int version = 1;
   while (BaseLogFile::exists(roll_name)) {
     log_log_trace("The rolled file %s already exists; adding version "
-                  "tag %d to avoid clobbering the existing file.\n",
-                  roll_name, version);
+        "tag %d to avoid clobbering the existing file.\n",
+        roll_name, version);
     snprintf(roll_name, LOGFILE_ROLL_MAXPATHLEN, "%s%s.%s-%s.%d%s", m_name, LOGFILE_SEPARATOR_STRING, start_time_ext, end_time_ext,
-             version, LOGFILE_ROLLED_EXTENSION);
+        version, LOGFILE_ROLLED_EXTENSION);
     version++;
   }
 
@@ -251,8 +287,7 @@ BaseLogFile::open_file()
     return LOG_FILE_NO_ERROR;
   }
 
-  // get root
-  // ElevateAccess follows RAII design, the destructor will release root
+  // get root; destructor will release access
   ElevateAccess accesss(true);
 
   // Check to see if the file exists BEFORE we try to open it, since
