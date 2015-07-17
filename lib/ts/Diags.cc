@@ -101,7 +101,7 @@ SrcLoc::str(char *buf, int buflen) const
 //
 //////////////////////////////////////////////////////////////////////////////
 
-Diags::Diags(const char *bdt, const char *bat, BaseLogFile *_base_log_file)
+Diags::Diags(const char *bdt, const char *bat, BaseLogFile *_diags_log)
   : magic(DIAGS_MAGIC), show_location(0), base_debug_tags(NULL), base_action_tags(NULL), rollcounter(0)
 {
   int i;
@@ -134,7 +134,10 @@ Diags::Diags(const char *bdt, const char *bat, BaseLogFile *_base_log_file)
   // get root & set up BaseLogFile
   // ElevateAccess follows RAII design, the destructor will release root
   ElevateAccess accesss(true);
-  setup_baselogfile(_base_log_file);
+  setup_diagslog(_diags_log);
+
+  // setup stderr and stdout BaseLogFiles
+  stdout_log = new BaseLogFile(stdout,false);
 
   //////////////////////////////////////////////////////////////////
   // start off with empty tag tables, will build in reconfigure() //
@@ -147,9 +150,9 @@ Diags::Diags(const char *bdt, const char *bat, BaseLogFile *_base_log_file)
 
 Diags::~Diags()
 {
-  if (base_log_file) {
-    base_log_file = NULL;
-    delete base_log_file;
+  if (diags_log) {
+    diags_log= NULL;
+    delete diags_log;
   }
 
   ats_free((void *)base_debug_tags);
@@ -290,18 +293,18 @@ Diags::print_va(const char *debug_tag, DiagsLevel diags_level, const SrcLoc *loc
 
   lock();
   if (config.outputs[diags_level].to_diagslog) {
-    if (base_log_file->m_fp) {
+    if (diags_log->m_fp) {
       // if (should_roll()) {
       // Note("Diags log file rolled\n");
       //}
       va_list ap_scratch;
       va_copy(ap_scratch, ap);
       buffer = format_buf_w_ts;
-      vfprintf(base_log_file->m_fp, buffer, ap_scratch);
+      vfprintf(diags_log->m_fp, buffer, ap_scratch);
       {
         int len = strlen(buffer);
         if (len > 0 && buffer[len - 1] != '\n') {
-          putc('\n', base_log_file->m_fp);
+          putc('\n', diags_log->m_fp);
         }
       }
     }
@@ -564,9 +567,9 @@ Diags::error_va(DiagsLevel level, const char *file, const char *func, const int 
  * with this instance of Diags
  */
 void
-Diags::setup_baselogfile(BaseLogFile *blf)
+Diags::setup_diagslog(BaseLogFile *blf)
 {
-  base_log_file = blf;
+  diags_log = blf;
 
   // get file stream from BaseLogFile filedes
   if (blf && blf->open_file() == BaseLogFile::LOG_FILE_NO_ERROR) {
@@ -575,7 +578,7 @@ Diags::setup_baselogfile(BaseLogFile *blf)
       status = setvbuf(blf->m_fp, NULL, _IOLBF, 512);
       if (status != 0) {
         delete blf;
-        base_log_file = NULL;
+        diags_log = NULL;
       }
     } else {
       log_log_error("Could not open diags log file: %s\n", strerror(errno));
@@ -584,23 +587,23 @@ Diags::setup_baselogfile(BaseLogFile *blf)
 }
 
 /*
- * Checks if the file on disk needs to be rolled, and does so if necessary
+ * Checks if the diags.log file on disk needs to be rolled, and does so if necessary
  *
- * This function will replace the current base_log_file object with a
+ * This function will replace the current diags_log object with a
  * new one (if we choose to roll), as each BaseLogFile object logically
  * represents one file on disk
  *
  * Returns true if rolled, false otherwise
  */
 bool
-Diags::should_roll()
+Diags::should_roll_diagslog()
 {
   // XXX use actual config values to roll
-  if (++rollcounter == 7) {
-    if (base_log_file->roll()) {
-      const char *oldname = ats_strdup(base_log_file->get_name());
-      delete base_log_file;
-      setup_baselogfile(new BaseLogFile(oldname, false));
+  if (++rollcounter == 50) {
+    if (diags_log->roll()) {
+      const char *oldname = ats_strdup(diags_log->get_name());
+      delete diags_log;
+      setup_diagslog(new BaseLogFile(oldname, false));
       rollcounter = 0;
       return true;
     }
