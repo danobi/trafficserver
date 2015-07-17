@@ -137,7 +137,7 @@ Diags::Diags(const char *bdt, const char *bat, BaseLogFile *_diags_log)
   setup_diagslog(_diags_log);
 
   // setup stderr and stdout BaseLogFiles
-  stdout_log = new BaseLogFile(stdout,false);
+  //stdout_log = new BaseLogFile(stdout,false);
 
   //////////////////////////////////////////////////////////////////
   // start off with empty tag tables, will build in reconfigure() //
