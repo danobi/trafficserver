@@ -153,6 +153,8 @@ char cluster_host[MAXDNAME + 1] = DEFAULT_CLUSTER_HOST;
 static char command_string[512] = "";
 static char conf_dir[512] = "";
 int remote_management_flag = DEFAULT_REMOTE_MANAGEMENT_FLAG;
+static char bind_stdout[512] = DEFAULT_BIND_STDOUT;
+static char bind_stderr[512] = DEFAULT_BIND_STDERR;
 
 static char error_tags[1024] = "";
 static char action_tags[1024] = "";
@@ -199,6 +201,8 @@ static const ArgumentDescription argument_descriptions[] = {
   {"conf_dir", 'D', "config dir to verify", "S511", &conf_dir, "PROXY_SYS_CONFIG_DIR", NULL},
   {"clear_hostdb", 'k', "Clear HostDB on Startup", "F", &auto_clear_hostdb_flag, "PROXY_CLEAR_HOSTDB", NULL},
   {"clear_cache", 'K', "Clear Cache on Startup", "F", &cacheProcessor.auto_clear_flag, "PROXY_CLEAR_CACHE", NULL},
+  {"bind_stdout",'-', "Regular file to bind stdout to", "S512", &bind_stdout, "PROXY_BIND_STDOUT", NULL},
+  {"bind_stderr",'-', "Regular file to bind stderr to", "S512", &bind_stderr, "PROXY_BIND_STDERR", NULL},
 #if defined(linux)
   {"read_core", 'c', "Read Core file", "S255", &core_file, NULL, NULL},
 #endif
@@ -1401,6 +1405,27 @@ main(int /* argc ATS_UNUSED */, const char **argv)
   command_index = find_cmd_index(command_string);
   command_valid = command_flag && command_index >= 0;
 
+  // Bind stdout and stderr to specified switches
+  fprintf(stdout, "binding stdout!\n");
+  int log_fd;
+  if (strcmp(bind_stdout, "") != 0) {
+    if ((log_fd = open(bind_stdout, O_WRONLY | O_APPEND | O_CREAT, 0644)) < 0) 
+      fprintf(stdout,"[Warning]: unable to open log file \"%s\" [%d '%s']\n", bind_stdout, errno, strerror(errno));
+    else {
+      fprintf(stdout, "duping stdout!\n");
+      dup2(log_fd,STDOUT_FILENO);
+      close(log_fd);
+    }
+  }
+  if (strcmp(bind_stderr, "") != 0) {
+    if ((log_fd = open(bind_stderr, O_WRONLY | O_APPEND | O_CREAT, 0644)) < 0) 
+      fprintf(stdout,"[Warning]: unable to open log file \"%s\" [%d '%s']\n", bind_stderr, errno, strerror(errno));
+    else {
+      dup2(log_fd,STDERR_FILENO);
+      close(log_fd);
+    }
+  }
+
   // Specific validity checks.
   if (*conf_dir && command_index != find_cmd_index(CMD_VERIFY_CONFIG)) {
     fprintf(stderr, "-D option can only be used with the %s command\n", CMD_VERIFY_CONFIG);
@@ -1509,6 +1534,10 @@ main(int /* argc ATS_UNUSED */, const char **argv)
   diags->prefix_str = "Server ";
   if (is_debug_tag_set("diags"))
     diags->dump();
+
+  // XXX remove
+  Note("oi listen up\n");
+  Note("position = %ld\n",ftell(stdout));
 
   DebugCapabilities("privileges"); // Can do this now, logging is up.
 

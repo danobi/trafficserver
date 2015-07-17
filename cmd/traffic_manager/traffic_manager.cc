@@ -77,6 +77,8 @@ static inkcoreapi DiagsConfig *diagsConfig;
 static char debug_tags[1024] = "";
 static char action_tags[1024] = "";
 static bool proxy_off = false;
+static char bind_stdout[512] = "";
+static char bind_stderr[512] = "";
 
 static const char *mgmt_path = NULL;
 
@@ -413,6 +415,8 @@ main(int argc, const char **argv)
     {"tsArgs", '-', "Additional arguments for traffic_server", "S*", &tsArgs, NULL, NULL},
     {"proxyPort", '-', "HTTP port descriptor", "S*", &proxy_port, NULL, NULL},
     {"proxyBackDoor", '-', "Management port", "I", &proxy_backdoor, NULL, NULL},
+    {"bind_stdout",'-', "Regular file to bind stdout to", "S512", &bind_stdout, "PROXY_BIND_STDOUT", NULL},
+    {"bind_stderr",'-', "Regular file to bind stderr to", "S512", &bind_stderr, "PROXY_BIND_STDERR", NULL},
 #if TS_USE_DIAGS
     {"debug", 'T', "Vertical-bar-separated Debug Tags", "S1023", debug_tags, NULL, NULL},
     {"action", 'B', "Vertical-bar-separated Behavior Tags", "S1023", action_tags, NULL, NULL},
@@ -424,6 +428,26 @@ main(int argc, const char **argv)
 
   // Process command line arguments and dump into variables
   process_args(&appVersionInfo, argument_descriptions, countof(argument_descriptions), argv);
+
+  // Bind stdout and stderr specified switches
+  int log_fd;
+  if (strcmp(bind_stdout, "") != 0) {
+    if ((log_fd = open(bind_stdout, O_WRONLY | O_APPEND | O_CREAT, 0644)) < 0) 
+      fprintf(stdout,"[Warning]: unable to open log file \"%s\" [%d '%s']\n", bind_stdout, errno, strerror(errno));
+    else {
+      printf("TM, log_fd = %d\n",log_fd);
+      dup2(log_fd,STDOUT_FILENO);
+      close(log_fd);
+    }
+  }
+  if (strcmp(bind_stderr, "") != 0) {
+    if ((log_fd = open(bind_stderr, O_WRONLY | O_APPEND | O_CREAT, 0644)) < 0) 
+      fprintf(stdout,"[Warning]: unable to open log file \"%s\" [%d '%s']\n", bind_stderr, errno, strerror(errno));
+    else {
+      dup2(log_fd,STDERR_FILENO);
+      close(log_fd);
+    }
+  }
 
   // change the directory to the "root" directory
   chdir_root();
