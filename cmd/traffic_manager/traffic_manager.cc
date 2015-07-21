@@ -381,6 +381,7 @@ millisleep(int ms)
 int
 main(int argc, const char **argv)
 {
+  printf("woo in mngr main!\n");
   const long MAX_LOGIN = ink_login_name_max();
 
   // Before accessing file system initialize Layout engine
@@ -432,8 +433,10 @@ main(int argc, const char **argv)
   // Bind stdout and stderr specified switches
   int log_fd;
   if (strcmp(bind_stdout, "") != 0) {
-    if ((log_fd = open(bind_stdout, O_WRONLY | O_APPEND | O_CREAT, 0644)) < 0) 
+    log_fd = open(bind_stdout, O_WRONLY | O_APPEND | O_CREAT, 0644);
+    if (log_fd < 0) {
       fprintf(stdout,"[Warning]: unable to open log file \"%s\" [%d '%s']\n", bind_stdout, errno, strerror(errno));
+    }
     else {
       printf("TM, log_fd = %d\n",log_fd);
       dup2(log_fd,STDOUT_FILENO);
@@ -441,8 +444,10 @@ main(int argc, const char **argv)
     }
   }
   if (strcmp(bind_stderr, "") != 0) {
-    if ((log_fd = open(bind_stderr, O_WRONLY | O_APPEND | O_CREAT, 0644)) < 0) 
+    log_fd = open(bind_stderr, O_WRONLY | O_APPEND | O_CREAT, 0644);
+    if (log_fd < 0) {
       fprintf(stdout,"[Warning]: unable to open log file \"%s\" [%d '%s']\n", bind_stderr, errno, strerror(errno));
+    }
     else {
       dup2(log_fd,STDERR_FILENO);
       close(log_fd);

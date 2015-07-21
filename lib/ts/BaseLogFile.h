@@ -168,7 +168,6 @@ class BaseLogFile
 public:
   // member functions
   BaseLogFile(const char *name, bool is_bootstrap);
-  BaseLogFile(FILE *_fp, bool is_bootstrap);
   BaseLogFile(const BaseLogFile &);
   ~BaseLogFile();
   int roll();

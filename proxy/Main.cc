@@ -1409,8 +1409,10 @@ main(int /* argc ATS_UNUSED */, const char **argv)
   fprintf(stdout, "binding stdout!\n");
   int log_fd;
   if (strcmp(bind_stdout, "") != 0) {
-    if ((log_fd = open(bind_stdout, O_WRONLY | O_APPEND | O_CREAT, 0644)) < 0) 
+    log_fd = open(bind_stdout, O_WRONLY | O_APPEND | O_CREAT, 0644);
+    if (log_fd < 0) {
       fprintf(stdout,"[Warning]: unable to open log file \"%s\" [%d '%s']\n", bind_stdout, errno, strerror(errno));
+    }
     else {
       fprintf(stdout, "duping stdout!\n");
       dup2(log_fd,STDOUT_FILENO);
@@ -1418,8 +1420,10 @@ main(int /* argc ATS_UNUSED */, const char **argv)
     }
   }
   if (strcmp(bind_stderr, "") != 0) {
-    if ((log_fd = open(bind_stderr, O_WRONLY | O_APPEND | O_CREAT, 0644)) < 0) 
+    log_fd = open(bind_stderr, O_WRONLY | O_APPEND | O_CREAT, 0644);
+    if (log_fd < 0) {
       fprintf(stdout,"[Warning]: unable to open log file \"%s\" [%d '%s']\n", bind_stderr, errno, strerror(errno));
+    }
     else {
       dup2(log_fd,STDERR_FILENO);
       close(log_fd);
@@ -1534,10 +1538,6 @@ main(int /* argc ATS_UNUSED */, const char **argv)
   diags->prefix_str = "Server ";
   if (is_debug_tag_set("diags"))
     diags->dump();
-
-  // XXX remove
-  Note("oi listen up\n");
-  Note("position = %ld\n",ftell(stdout));
 
   DebugCapabilities("privileges"); // Can do this now, logging is up.
 
