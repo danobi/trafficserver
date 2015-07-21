@@ -135,12 +135,12 @@ Diags::Diags(const char *bdt, const char *bat, BaseLogFile *_diags_log)
   // get root & set up BaseLogFile
   // ElevateAccess follows RAII design, the destructor will release root
   printf("before elevateaccess\n");
-  //ElevateAccess accesss(true);
+  // ElevateAccess accesss(true);
   printf("before setup_diagslog()\n");
   setup_diagslog(_diags_log);
   printf("after setup_diagslog()\n");
   // setup stderr and stdout BaseLogFiles
-  //stdout_log = new BaseLogFile(stdout,false);
+  // stdout_log = new BaseLogFile(stdout,false);
 
   //////////////////////////////////////////////////////////////////
   // start off with empty tag tables, will build in reconfigure() //
@@ -154,7 +154,7 @@ Diags::Diags(const char *bdt, const char *bat, BaseLogFile *_diags_log)
 Diags::~Diags()
 {
   if (diags_log) {
-    diags_log= NULL;
+    diags_log = NULL;
     delete diags_log;
   }
 
