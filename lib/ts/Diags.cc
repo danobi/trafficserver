@@ -104,6 +104,7 @@ SrcLoc::str(char *buf, int buflen) const
 Diags::Diags(const char *bdt, const char *bat, BaseLogFile *_diags_log)
   : magic(DIAGS_MAGIC), show_location(0), base_debug_tags(NULL), base_action_tags(NULL), rollcounter(0)
 {
+  printf("hello world\n");
   int i;
 
   cleanup_func = NULL;
@@ -133,9 +134,11 @@ Diags::Diags(const char *bdt, const char *bat, BaseLogFile *_diags_log)
 
   // get root & set up BaseLogFile
   // ElevateAccess follows RAII design, the destructor will release root
-  ElevateAccess accesss(true);
+  printf("before elevateaccess\n");
+  //ElevateAccess accesss(true);
+  printf("before setup_diagslog()\n");
   setup_diagslog(_diags_log);
-
+  printf("after setup_diagslog()\n");
   // setup stderr and stdout BaseLogFiles
   //stdout_log = new BaseLogFile(stdout,false);
 
@@ -293,7 +296,7 @@ Diags::print_va(const char *debug_tag, DiagsLevel diags_level, const SrcLoc *loc
 
   lock();
   if (config.outputs[diags_level].to_diagslog) {
-    if (diags_log->m_fp) {
+    if (diags_log && diags_log->m_fp) {
       // if (should_roll()) {
       // Note("Diags log file rolled\n");
       //}
@@ -598,6 +601,8 @@ Diags::setup_diagslog(BaseLogFile *blf)
 bool
 Diags::should_roll_diagslog()
 {
+  // XXX REMOVE!!
+  return false;
   // XXX use actual config values to roll
   if (++rollcounter == 50) {
     if (diags_log->roll()) {

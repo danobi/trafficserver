@@ -39,42 +39,6 @@ BaseLogFile::BaseLogFile(const char *name, bool is_bootstrap) : m_name(ats_strdu
 }
 
 /*
- * This consturctor creates a BaseLogFile based on a given file stream.
- * Minimal error checking is done on provided FILE*, be careful
- */
-BaseLogFile::BaseLogFile(FILE *_fp, bool is_bootstrap) : m_fp(_fp), m_is_bootstrap(is_bootstrap)
-{
-  bool is_redirected = ftell(_fp) >= 0 ? true : false;
-  if ((m_fp == stdout || m_fp == stderr) && is_redirected) {
-    char path[1024];
-    char result[1024];
-
-    // get the file descriptor
-    int fd = fileno(m_fp); 
-
-    // read out the link to our file descriptor
-    sprintf(path, "/proc/self/fd/%d", fd);
-    memset(result, 0, sizeof(result));
-    readlink(path, result, sizeof(result)-1);
-    m_name = ats_strdup(result);
-    log_log_trace("path = %s\n",result);
-  }
-  else if (m_fp == stdout && !is_redirected) {
-    m_name = ats_strdup("stdout");
-  }
-  else if (m_fp == stderr && !is_redirected) {
-    m_name = ats_strdup("stderr");
-  }
-
-  m_start_time = 0L;
-  m_end_time = 0L;
-  m_bytes_written = 0;
-  m_meta_info = NULL;
-
-  log_log_trace("exiting BaseLogFile file handle constructor, m_name=%s, this=%p\n", m_name, this);
-}
-
-/*
  * This copy constructor creates a BaseLogFile based on a given copy.
  */
   BaseLogFile::BaseLogFile(const BaseLogFile &copy)
@@ -275,6 +239,7 @@ BaseLogFile::exists(const char *pathname)
 int
 BaseLogFile::open_file()
 {
+  printf("opening file\n");
   if (is_open()) {
     return LOG_FILE_NO_ERROR;
   }
@@ -288,7 +253,7 @@ BaseLogFile::open_file()
   }
 
   // get root; destructor will release access
-  ElevateAccess accesss(true);
+  //ElevateAccess accesss(true);
 
   // Check to see if the file exists BEFORE we try to open it, since
   // opening it will also create it.
