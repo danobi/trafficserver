@@ -780,8 +780,8 @@ spawn_manager()
   // Bind stdout and stderr of traffic_manager to traffic.out
   int max_opts_len = OPTIONS_LEN_MAX - strlen(manager_options);
   char tm_opt_buf[max_opts_len];
-  snprintf(tm_opt_buf,max_opts_len,"--bind_stdout %s --bind_stderr %s",log_file,log_file);
-  strcat(manager_options,tm_opt_buf);
+  snprintf(tm_opt_buf, max_opts_len, "--bind_stdout %s --bind_stderr %s", log_file, log_file);
+  strcat(manager_options, tm_opt_buf);
 
   cop_log_trace("spawn_manager: Launching %s with options '%s'\n", prog, manager_options);
   int i;

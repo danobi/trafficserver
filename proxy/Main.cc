@@ -201,8 +201,8 @@ static const ArgumentDescription argument_descriptions[] = {
   {"conf_dir", 'D', "config dir to verify", "S511", &conf_dir, "PROXY_SYS_CONFIG_DIR", NULL},
   {"clear_hostdb", 'k', "Clear HostDB on Startup", "F", &auto_clear_hostdb_flag, "PROXY_CLEAR_HOSTDB", NULL},
   {"clear_cache", 'K', "Clear Cache on Startup", "F", &cacheProcessor.auto_clear_flag, "PROXY_CLEAR_CACHE", NULL},
-  {"bind_stdout",'-', "Regular file to bind stdout to", "S512", &bind_stdout, "PROXY_BIND_STDOUT", NULL},
-  {"bind_stderr",'-', "Regular file to bind stderr to", "S512", &bind_stderr, "PROXY_BIND_STDERR", NULL},
+  {"bind_stdout", '-', "Regular file to bind stdout to", "S512", &bind_stdout, "PROXY_BIND_STDOUT", NULL},
+  {"bind_stderr", '-', "Regular file to bind stderr to", "S512", &bind_stderr, "PROXY_BIND_STDERR", NULL},
 #if defined(linux)
   {"read_core", 'c', "Read Core file", "S255", &core_file, NULL, NULL},
 #endif
@@ -1411,21 +1411,19 @@ main(int /* argc ATS_UNUSED */, const char **argv)
   if (strcmp(bind_stdout, "") != 0) {
     log_fd = open(bind_stdout, O_WRONLY | O_APPEND | O_CREAT, 0644);
     if (log_fd < 0) {
-      fprintf(stdout,"[Warning]: unable to open log file \"%s\" [%d '%s']\n", bind_stdout, errno, strerror(errno));
-    }
-    else {
+      fprintf(stdout, "[Warning]: unable to open log file \"%s\" [%d '%s']\n", bind_stdout, errno, strerror(errno));
+    } else {
       fprintf(stdout, "duping stdout!\n");
-      dup2(log_fd,STDOUT_FILENO);
+      dup2(log_fd, STDOUT_FILENO);
       close(log_fd);
     }
   }
   if (strcmp(bind_stderr, "") != 0) {
     log_fd = open(bind_stderr, O_WRONLY | O_APPEND | O_CREAT, 0644);
     if (log_fd < 0) {
-      fprintf(stdout,"[Warning]: unable to open log file \"%s\" [%d '%s']\n", bind_stderr, errno, strerror(errno));
-    }
-    else {
-      dup2(log_fd,STDERR_FILENO);
+      fprintf(stdout, "[Warning]: unable to open log file \"%s\" [%d '%s']\n", bind_stderr, errno, strerror(errno));
+    } else {
+      dup2(log_fd, STDERR_FILENO);
       close(log_fd);
     }
   }
