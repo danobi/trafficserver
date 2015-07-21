@@ -94,7 +94,7 @@ init_diags(const char *bdt, const char *bat)
   char diags_logpath[500];
   ink_strlcpy(diags_logpath, DIAGS_LOG_FILE, sizeof(diags_logpath));
 
-  BaseLogFile * blf = new BaseLogFile(diags_logpath,false);
+  BaseLogFile *blf = new BaseLogFile(diags_logpath, false);
   diags = new Diags(bdt, bat, blf);
 
   if (blf && blf->m_fp == NULL) {
