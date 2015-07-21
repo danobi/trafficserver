@@ -94,7 +94,8 @@ static gid_t admin_gid;
 static bool admin_user_p = false;
 static char manager_binary[PATH_NAME_MAX] = "traffic_manager";
 static char server_binary[PATH_NAME_MAX] = "traffic_server";
-static char manager_options[OPTIONS_LEN_MAX] = "";
+static char manager_options[OPTIONS_LEN_MAX] = ""; // warning: do not hard code anything here
+                                                   // it will be overwritten in spawn_manager()
 
 static char log_file[PATH_NAME_MAX] = "traffic.out";
 
@@ -778,10 +779,13 @@ spawn_manager()
   }
 
   // Bind stdout and stderr of traffic_manager to traffic.out
+  /* XXX put back the safer version (also more correct)
   int max_opts_len = OPTIONS_LEN_MAX - strlen(manager_options);
   char tm_opt_buf[max_opts_len];
   snprintf(tm_opt_buf, max_opts_len, "--bind_stdout %s --bind_stderr %s", log_file, log_file);
   strcat(manager_options, tm_opt_buf);
+  */
+  snprintf(manager_options, OPTIONS_LEN_MAX, "--bind_stdout %s --bind_stderr %s", log_file, log_file);
 
   cop_log_trace("spawn_manager: Launching %s with options '%s'\n", prog, manager_options);
   int i;
