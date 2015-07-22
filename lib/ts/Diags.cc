@@ -590,16 +590,19 @@ Diags::setup_diagslog(BaseLogFile *blf)
 }
 
 /*
- * Checks if the diags.log file on disk needs to be rolled, and does so if necessary
+ * Checks diags_log, stdout_log, and stderr_log if their underlying files on disk
+ * need to be rolled, and does so if necessary
  *
- * This function will replace the current diags_log object with a
+ * This function will replace the current BaseLogFile object with a
  * new one (if we choose to roll), as each BaseLogFile object logically
  * represents one file on disk
+ *
+ * This function will also call lock() to prevent race conditions
  *
  * Returns true if rolled, false otherwise
  */
 bool
-Diags::should_roll_diagslog()
+Diags::should_roll_logs()
 {
   // XXX REMOVE!!
   return false;
