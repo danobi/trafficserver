@@ -217,27 +217,7 @@ private:
   BaseLogFile &operator=(const BaseLogFile &);
 
   // member functions
-  // XXX temp function: move to a better place
-  /*-------------------------------------------------------------------------
-    LogUtils::timestamp_to_str
-
-    This routine will convert a timestamp (seconds) into a short string,
-    of the format "%Y%m%d.%Hh%Mm%Ss".
-
-    Since the resulting buffer is passed in, this routine is thread-safe.
-    Return value is the number of characters placed into the array, not
-    including the NULL.
-    -------------------------------------------------------------------------*/
-
-  int
-  timestamp_to_str(long timestamp, char *buf, int size)
-  {
-    static const char *format_str = "%Y%m%d.%Hh%Mm%Ss";
-    struct tm res;
-    struct tm *tms;
-    tms = ink_localtime_r((const time_t *)&timestamp, &res);
-    return strftime(buf, size, format_str, tms);
-  }
+  int timestamp_to_str(long timestamp, char *buf, int size);
 
   // member variables
   char *m_name;
