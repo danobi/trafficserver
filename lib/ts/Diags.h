@@ -242,7 +242,7 @@ public:
 
   void deactivate_all(DiagsTagType mode = DiagsTagType_Debug);
 
-  bool should_roll_diagslog();
+  bool should_roll_logs();
 
   const char *base_debug_tags;  // internal copy of default debug tags
   const char *base_action_tags; // internal copy of default action tags

@@ -1406,6 +1406,7 @@ main(int /* argc ATS_UNUSED */, const char **argv)
   command_valid = command_flag && command_index >= 0;
 
   // Bind stdout and stderr to specified switches
+  // XXX make function for this
   fprintf(stdout, "binding stdout!\n");
   int log_fd;
   if (strcmp(bind_stdout, "") != 0) {
