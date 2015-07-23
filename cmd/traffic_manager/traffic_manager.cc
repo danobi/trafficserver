@@ -436,7 +436,7 @@ main(int argc, const char **argv)
   if (strcmp(bind_stdout, "") != 0) {
     log_fd = open(bind_stdout, O_WRONLY | O_APPEND | O_CREAT, 0644);
     if (log_fd < 0) {
-      fprintf(stdout, "[Warning]: unable to open log file \"%s\" [%d '%s']\n", bind_stdout, errno, strerror(errno));
+      fprintf(stdout, "[Warning]: TM unable to open log file \"%s\" [%d '%s']\n", bind_stdout, errno, strerror(errno));
     } else {
       printf("TM, log_fd = %d\n", log_fd);
       dup2(log_fd, STDOUT_FILENO);
@@ -446,7 +446,7 @@ main(int argc, const char **argv)
   if (strcmp(bind_stderr, "") != 0) {
     log_fd = open(bind_stderr, O_WRONLY | O_APPEND | O_CREAT, 0644);
     if (log_fd < 0) {
-      fprintf(stdout, "[Warning]: unable to open log file \"%s\" [%d '%s']\n", bind_stderr, errno, strerror(errno));
+      fprintf(stdout, "[Warning]: TM unable to open log file \"%s\" [%d '%s']\n", bind_stderr, errno, strerror(errno));
     } else {
       dup2(log_fd, STDERR_FILENO);
       close(log_fd);

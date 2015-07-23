@@ -1407,12 +1407,13 @@ main(int /* argc ATS_UNUSED */, const char **argv)
 
   // Bind stdout and stderr to specified switches
   // XXX make function for this
+  ElevateAccess *a = new ElevateAccess(true);
   int log_fd;
   if (strcmp(bind_stdout, "") != 0) {
-    fprintf(stdout, "binding stdout!\n");
+    fprintf(stdout, "binding stdout to %s!\n",bind_stdout);
     log_fd = open(bind_stdout, O_WRONLY | O_APPEND | O_CREAT, 0644);
     if (log_fd < 0) {
-      fprintf(stdout, "[Warning]: unable to open log file \"%s\" [%d '%s']\n", bind_stdout, errno, strerror(errno));
+      fprintf(stdout, "[Warning]: TS unable to open log file \"%s\" [%d '%s']\n", bind_stdout, errno, strerror(errno));
     } else {
       fprintf(stdout, "duping stdout!\n");
       dup2(log_fd, STDOUT_FILENO);
@@ -1420,16 +1421,17 @@ main(int /* argc ATS_UNUSED */, const char **argv)
     }
   }
   if (strcmp(bind_stderr, "") != 0) {
-    fprintf(stdout, "binding stderr!\n");
+    fprintf(stdout, "binding stderr to %s!\n",bind_stderr);
     log_fd = open(bind_stderr, O_WRONLY | O_APPEND | O_CREAT, 0644);
     if (log_fd < 0) {
-      fprintf(stdout, "[Warning]: unable to open log file \"%s\" [%d '%s']\n", bind_stderr, errno, strerror(errno));
+      fprintf(stdout, "[Warning]: TS unable to open log file \"%s\" [%d '%s']\n", bind_stderr, errno, strerror(errno));
     } else {
       fprintf(stdout, "duping stderr!\n");
       dup2(log_fd, STDERR_FILENO);
       close(log_fd);
     }
   }
+  delete a;
 
   // Specific validity checks.
   if (*conf_dir && command_index != find_cmd_index(CMD_VERIFY_CONFIG)) {
