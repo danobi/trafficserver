@@ -104,7 +104,6 @@ SrcLoc::str(char *buf, int buflen) const
 Diags::Diags(const char *bdt, const char *bat, BaseLogFile *_diags_log)
   : magic(DIAGS_MAGIC), show_location(0), base_debug_tags(NULL), base_action_tags(NULL), rollcounter(0)
 {
-  printf("hello world\n");
   int i;
 
   cleanup_func = NULL;
@@ -132,15 +131,7 @@ Diags::Diags(const char *bdt, const char *bat, BaseLogFile *_diags_log)
     config.outputs[i].to_diagslog = true;
   }
 
-  // get root & set up BaseLogFile
-  // ElevateAccess follows RAII design, the destructor will release root
-  printf("before elevateaccess\n");
-  // ElevateAccess accesss(true);
-  printf("before setup_diagslog()\n");
   setup_diagslog(_diags_log);
-  printf("after setup_diagslog()\n");
-  // setup stderr and stdout BaseLogFiles
-  // stdout_log = new BaseLogFile(stdout,false);
 
   //////////////////////////////////////////////////////////////////
   // start off with empty tag tables, will build in reconfigure() //
@@ -297,9 +288,6 @@ Diags::print_va(const char *debug_tag, DiagsLevel diags_level, const SrcLoc *loc
   lock();
   if (config.outputs[diags_level].to_diagslog) {
     if (diags_log && diags_log->m_fp) {
-      // if (should_roll()) {
-      // Note("Diags log file rolled\n");
-      //}
       va_list ap_scratch;
       va_copy(ap_scratch, ap);
       buffer = format_buf_w_ts;

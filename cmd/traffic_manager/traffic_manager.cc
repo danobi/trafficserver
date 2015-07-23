@@ -431,6 +431,7 @@ main(int argc, const char **argv)
   process_args(&appVersionInfo, argument_descriptions, countof(argument_descriptions), argv);
 
   // Bind stdout and stderr specified switches
+  // XXX make function for this
   int log_fd;
   if (strcmp(bind_stdout, "") != 0) {
     log_fd = open(bind_stdout, O_WRONLY | O_APPEND | O_CREAT, 0644);
@@ -592,6 +593,25 @@ main(int argc, const char **argv)
     lmgmt->proxy_options = tsArgs;
     mgmt_log(stderr, "[main] Traffic Server Args: '%s'\n", lmgmt->proxy_options);
   }
+  
+  // we must pass in bind_stdout and bind_stderr values to TS
+  // we do it so TS is able to create BaseLogFiles for each value
+  if (strcmp(bind_stdout,"") != 0) {
+    lmgmt->proxy_options = (char*)ats_realloc(lmgmt->proxy_options,strlen(lmgmt->proxy_options) + 1 /* space */
+                                      + strlen("--bind_stdout ") + strlen(bind_stdout) + 1 /* null term */);
+    strcat(lmgmt->proxy_options," --bind_stdout "); 
+    strcat(lmgmt->proxy_options,bind_stdout); 
+  }
+  printf("WOOO opts = %s\n",lmgmt->proxy_options);
+
+  if (strcmp(bind_stderr,"") != 0) {
+    lmgmt->proxy_options = (char*)ats_realloc(lmgmt->proxy_options,strlen(lmgmt->proxy_options) + 1 /* space */
+                                      + strlen("--bind_stderr ") + strlen(bind_stderr) + 1 /* null term */);
+    strcat(lmgmt->proxy_options," --bind_stderr "); 
+    strcat(lmgmt->proxy_options,bind_stderr); 
+  }
+  printf("WOOO opts = %s\n",lmgmt->proxy_options);
+
   if (proxy_port) {
     HttpProxyPort::loadValue(lmgmt->m_proxy_ports, proxy_port);
   }
