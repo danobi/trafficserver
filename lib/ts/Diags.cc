@@ -102,8 +102,9 @@ SrcLoc::str(char *buf, int buflen) const
 //////////////////////////////////////////////////////////////////////////////
 
 Diags::Diags(const char *bdt, const char *bat, BaseLogFile *_diags_log)
-  : magic(DIAGS_MAGIC), show_location(0), base_debug_tags(NULL), base_action_tags(NULL), stdout_log(NULL), stderr_log(NULL), rollcounter(0)
-   
+  : magic(DIAGS_MAGIC), show_location(0), base_debug_tags(NULL), base_action_tags(NULL), stdout_log(NULL), stderr_log(NULL),
+    rollcounter(0)
+
 {
   int i;
 
@@ -134,8 +135,8 @@ Diags::Diags(const char *bdt, const char *bat, BaseLogFile *_diags_log)
 
   // create default stdout and stderr BaseLogFile objects
   // (in case the user of this class doesn't specify in the future)
-  stdout_log = new BaseLogFile("stdout",true);
-  stderr_log = new BaseLogFile("stderr",true);
+  stdout_log = new BaseLogFile("stdout", true);
+  stderr_log = new BaseLogFile("stderr", true);
   stdout_log->open_file(); // should never fail
   stderr_log->open_file(); // should never fail
 
@@ -616,13 +617,28 @@ bool
 Diags::should_roll_logs()
 {
   // XXX REMOVE!!
-  return false;
+  // return false;
+
   // XXX use actual config values to roll
+  /*
   if (++rollcounter == 50) {
     if (diags_log->roll()) {
       const char *oldname = ats_strdup(diags_log->get_name());
       delete diags_log;
       setup_diagslog(new BaseLogFile(oldname, false));
+      rollcounter = 0;
+      return true;
+    }
+  }
+  return false;
+  */
+  if (++rollcounter == 50) {
+    if (stdout_log->roll()) {
+      const char *oldname = ats_strdup(stdout_log->get_name());
+      set_stdout_output(oldname);
+      if (!strcmp(oldname, stderr_log->get_name())) {
+        set_stderr_output(oldname);
+      }
       rollcounter = 0;
       return true;
     }
@@ -639,14 +655,14 @@ Diags::should_roll_logs()
 bool
 Diags::set_stdout_output(const char *_bind_stdout)
 {
-  if (strcmp(_bind_stdout, "") == 0) 
+  if (strcmp(_bind_stdout, "") == 0)
     return false;
 
   if (stdout_log) {
     delete stdout_log;
     stdout_log = NULL;
   }
-  
+
   // get root
   ElevateAccess elevate(true);
 
@@ -655,20 +671,20 @@ Diags::set_stdout_output(const char *_bind_stdout)
 
   // on any errors we quit
   if (!stdout_log || stdout_log->open_file() != BaseLogFile::LOG_FILE_NO_ERROR) {
-    fprintf(stdout, "[Warning]: unable to open file=%s to bind stdout to\n",_bind_stdout);
+    fprintf(stdout, "[Warning]: unable to open file=%s to bind stdout to\n", _bind_stdout);
     delete stdout_log;
     stdout_log = NULL;
     return false;
   }
   if (!stdout_log->m_fp) {
-    fprintf(stdout, "[Warning]: file pointer for stdout %s = NULL\n",_bind_stdout);
+    fprintf(stdout, "[Warning]: file pointer for stdout %s = NULL\n", _bind_stdout);
     delete stdout_log;
     stdout_log = NULL;
     return false;
   }
 
   // bind stdout to file
-  fprintf(stdout, "binding stdout to %s!\n",_bind_stdout);
+  fprintf(stdout, "binding stdout to %s!\n", _bind_stdout);
   return rebind_stdout(fileno(stdout_log->m_fp));
 }
 
@@ -678,10 +694,10 @@ Diags::set_stdout_output(const char *_bind_stdout)
  *
  * Returns true on binding and setup, false otherwise
  */
-bool 
+bool
 Diags::set_stderr_output(const char *_bind_stderr)
 {
-  if (strcmp(_bind_stderr, "") == 0) 
+  if (strcmp(_bind_stderr, "") == 0)
     return false;
 
   if (stderr_log) {
@@ -696,20 +712,20 @@ Diags::set_stderr_output(const char *_bind_stderr)
 
   // on any errors we quit
   if (!stderr_log || stderr_log->open_file() != BaseLogFile::LOG_FILE_NO_ERROR) {
-    fprintf(stdout, "[Warning]: unable to open file=%s to bind stderr to\n",_bind_stderr);
+    fprintf(stdout, "[Warning]: unable to open file=%s to bind stderr to\n", _bind_stderr);
     delete stderr_log;
     stderr_log = NULL;
     return false;
   }
   if (!stderr_log->m_fp) {
-    fprintf(stdout, "[Warning]: file pointer for stderr %s = NULL\n",_bind_stderr);
+    fprintf(stdout, "[Warning]: file pointer for stderr %s = NULL\n", _bind_stderr);
     delete stderr_log;
     stderr_log = NULL;
     return false;
   }
 
   // bind stdout to file
-  fprintf(stdout, "binding stderr to %s!\n",_bind_stderr);
+  fprintf(stdout, "binding stderr to %s!\n", _bind_stderr);
   return rebind_stderr(fileno(stderr_log->m_fp));
 }
 
@@ -721,8 +737,8 @@ Diags::set_stderr_output(const char *_bind_stderr)
 bool
 Diags::rebind_stdout(int new_fd)
 {
-  if (new_fd < 0) 
-    fprintf(stdout, "[Warning]: TS unable to bind stdout to new file descriptor=%d",new_fd);
+  if (new_fd < 0)
+    fprintf(stdout, "[Warning]: TS unable to bind stdout to new file descriptor=%d", new_fd);
   else {
     fprintf(stdout, "duping stdout!\n");
     dup2(new_fd, STDOUT_FILENO);
@@ -739,8 +755,8 @@ Diags::rebind_stdout(int new_fd)
 bool
 Diags::rebind_stderr(int new_fd)
 {
-  if (new_fd < 0) 
-    fprintf(stdout, "[Warning]: TS unable to bind stderr to new file descriptor=%d",new_fd);
+  if (new_fd < 0)
+    fprintf(stdout, "[Warning]: TS unable to bind stderr to new file descriptor=%d", new_fd);
   else {
     fprintf(stdout, "duping stderr!\n");
     dup2(new_fd, STDERR_FILENO);

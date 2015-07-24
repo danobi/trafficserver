@@ -1373,16 +1373,17 @@ change_uid_gid(const char *user)
 
 /*
  * Binds stdout and stderr to files specified by the parameters
- * 
+ *
  * On failure to bind, emits a warning and whatever is being bound
  * just isn't bound
  */
-void bind_outputs(const char *_bind_stdout, const char *_bind_stderr)
+void
+bind_outputs(const char *_bind_stdout, const char *_bind_stderr)
 {
   ElevateAccess a(true);
   int log_fd;
   if (strcmp(_bind_stdout, "") != 0) {
-    fprintf(stdout, "binding stdout to %s!\n",_bind_stdout);
+    fprintf(stdout, "binding stdout to %s!\n", _bind_stdout);
     log_fd = open(_bind_stdout, O_WRONLY | O_APPEND | O_CREAT, 0644);
     if (log_fd < 0) {
       fprintf(stdout, "[Warning]: TS unable to open log file \"%s\" [%d '%s']\n", _bind_stdout, errno, strerror(errno));
@@ -1393,7 +1394,7 @@ void bind_outputs(const char *_bind_stdout, const char *_bind_stderr)
     }
   }
   if (strcmp(_bind_stderr, "") != 0) {
-    fprintf(stdout, "binding stderr to %s!\n",_bind_stderr);
+    fprintf(stdout, "binding stderr to %s!\n", _bind_stderr);
     log_fd = open(_bind_stderr, O_WRONLY | O_APPEND | O_CREAT, 0644);
     if (log_fd < 0) {
       fprintf(stdout, "[Warning]: TS unable to open log file \"%s\" [%d '%s']\n", _bind_stderr, errno, strerror(errno));
@@ -1441,7 +1442,7 @@ main(int /* argc ATS_UNUSED */, const char **argv)
 
   // Bind stdout and stderr to specified switches
   // XXX possibly unneeded with Diags now binding stdout and stderr??
-  bind_outputs(bind_stdout, bind_stderr); 
+  bind_outputs(bind_stdout, bind_stderr);
 
   // Specific validity checks.
   if (*conf_dir && command_index != find_cmd_index(CMD_VERIFY_CONFIG)) {

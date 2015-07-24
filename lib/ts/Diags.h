@@ -323,9 +323,13 @@ dummy_debug(const char *tag, const char *fmt, ...)
 #define Diag(tag, ...)       \
   if (unlikely(diags->on())) \
   diags->log(tag, DTA(DL_Diag), __VA_ARGS__)
-#define Debug(tag, ...)      \
-  if (unlikely(diags->on())) \
-  diags->log(tag, DTA(DL_Debug), __VA_ARGS__)
+#define Debug(tag, ...)                            \
+  do {                                             \
+    if (unlikely(diags->on())) {                   \
+      diags->log(tag, DTA(DL_Debug), __VA_ARGS__); \
+      diags->should_roll_logs();                   \
+    }                                              \
+  } while (0)
 #define DiagSpecific(flag, tag, ...) \
   if (unlikely(diags->on()))         \
   flag ? diags->print(tag, DTA(DL_Diag), __VA_ARGS__) : diags->log(tag, DTA(DL_Diag), __VA_ARGS__)

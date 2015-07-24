@@ -27,7 +27,8 @@
  * This consturctor creates a BaseLogFile based on a given name.
  * This is the most common way BaseLogFiles are created.
  */
-BaseLogFile::BaseLogFile(const char *name, bool is_bootstrap) : m_name(ats_strdup(name)), m_is_regfile(false), m_is_bootstrap(is_bootstrap)
+BaseLogFile::BaseLogFile(const char *name, bool is_bootstrap)
+  : m_name(ats_strdup(name)), m_is_regfile(false), m_is_bootstrap(is_bootstrap)
 {
   m_fp = NULL;
   m_start_time = 0L;
@@ -42,8 +43,8 @@ BaseLogFile::BaseLogFile(const char *name, bool is_bootstrap) : m_name(ats_strdu
  * This copy constructor creates a BaseLogFile based on a given copy.
  */
 BaseLogFile::BaseLogFile(const BaseLogFile &copy)
-  : m_fp(NULL), m_start_time(0L), m_end_time(0L), m_bytes_written(0), m_name(ats_strdup(copy.m_name)), 
-    m_is_regfile(false), m_is_bootstrap(copy.m_is_bootstrap), m_meta_info(NULL)
+  : m_fp(NULL), m_start_time(0L), m_end_time(0L), m_bytes_written(0), m_name(ats_strdup(copy.m_name)), m_is_regfile(false),
+    m_is_bootstrap(copy.m_is_bootstrap), m_meta_info(NULL)
 {
   log_log_trace("exiting BaseLogFile copy constructor, m_name=%s, this=%p\n", m_name, this);
 }
@@ -53,7 +54,7 @@ BaseLogFile::BaseLogFile(const BaseLogFile &copy)
  */
 BaseLogFile::~BaseLogFile()
 {
-  log_log_trace("entering BaseLogFile destructor, m_name=%s, this=%p\n", m_name,this);
+  log_log_trace("entering BaseLogFile destructor, m_name=%s, this=%p\n", m_name, this);
 
   if (m_is_regfile)
     close_file();
@@ -93,6 +94,12 @@ BaseLogFile::roll(long interval_start, long interval_end)
   // First, let's see if a roll is even needed.
   if (m_name == NULL || !BaseLogFile::exists(m_name)) {
     log_log_trace("Roll not needed for %s; file doesn't exist\n", (m_name) ? m_name : "no_name\n");
+    return 0;
+  }
+
+  // Then, check if this object is backing a regular file
+  if (!m_is_regfile) {
+    log_log_trace("Roll not needed for %s; not regular file\n", (m_name) ? m_name : "no_name\n");
     return 0;
   }
 
