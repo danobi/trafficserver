@@ -221,6 +221,7 @@ private:
 
   // member variables
   char *m_name;
+  bool m_is_regfile;
   uint64_t m_signature;
   bool m_is_bootstrap;
   BaseMetaInfo *m_meta_info;

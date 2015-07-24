@@ -132,6 +132,13 @@ Diags::Diags(const char *bdt, const char *bat, BaseLogFile *_diags_log)
     config.outputs[i].to_diagslog = true;
   }
 
+  // create default stdout and stderr BaseLogFile objects
+  // (in case the user of this class doesn't specify in the future)
+  stdout_log = new BaseLogFile("stdout",true);
+  stderr_log = new BaseLogFile("stderr",true);
+  stdout_log->open_file(); // should never fail
+  stderr_log->open_file(); // should never fail
+
   setup_diagslog(_diags_log);
 
   //////////////////////////////////////////////////////////////////
@@ -146,8 +153,18 @@ Diags::Diags(const char *bdt, const char *bat, BaseLogFile *_diags_log)
 Diags::~Diags()
 {
   if (diags_log) {
-    diags_log = NULL;
     delete diags_log;
+    diags_log = NULL;
+  }
+
+  if (stdout_log) {
+    delete stdout_log;
+    stdout_log = NULL;
+  }
+
+  if (stderr_log) {
+    delete stderr_log;
+    stderr_log = NULL;
   }
 
   ats_free((void *)base_debug_tags);
@@ -622,6 +639,11 @@ Diags::should_roll_logs()
 bool
 Diags::set_stdout_output(const char *_bind_stdout)
 {
+  if (stdout_log) {
+    delete stdout_log;
+    stdout_log = NULL;
+  }
+  
   // get root
   ElevateAccess elevate(true);
 
@@ -655,6 +677,10 @@ Diags::set_stdout_output(const char *_bind_stdout)
 bool 
 Diags::set_stderr_output(const char *_bind_stderr)
 {
+  if (stderr_log) {
+    delete stderr_log;
+    stderr_log = NULL;
+  }
   // get root
   ElevateAccess elevate(true);
 

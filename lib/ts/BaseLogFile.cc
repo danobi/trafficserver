@@ -27,7 +27,7 @@
  * This consturctor creates a BaseLogFile based on a given name.
  * This is the most common way BaseLogFiles are created.
  */
-BaseLogFile::BaseLogFile(const char *name, bool is_bootstrap) : m_name(ats_strdup(name)), m_is_bootstrap(is_bootstrap)
+BaseLogFile::BaseLogFile(const char *name, bool is_bootstrap) : m_name(ats_strdup(name)), m_is_regfile(false), m_is_bootstrap(is_bootstrap)
 {
   m_fp = NULL;
   m_start_time = 0L;
@@ -42,8 +42,8 @@ BaseLogFile::BaseLogFile(const char *name, bool is_bootstrap) : m_name(ats_strdu
  * This copy constructor creates a BaseLogFile based on a given copy.
  */
 BaseLogFile::BaseLogFile(const BaseLogFile &copy)
-  : m_fp(NULL), m_start_time(0L), m_end_time(0L), m_bytes_written(0), m_name(ats_strdup(copy.m_name)),
-    m_is_bootstrap(copy.m_is_bootstrap), m_meta_info(NULL)
+  : m_fp(NULL), m_start_time(0L), m_end_time(0L), m_bytes_written(0), m_name(ats_strdup(copy.m_name)), 
+    m_is_regfile(false), m_is_bootstrap(copy.m_is_bootstrap), m_meta_info(NULL)
 {
   log_log_trace("exiting BaseLogFile copy constructor, m_name=%s, this=%p\n", m_name, this);
 }
@@ -53,12 +53,14 @@ BaseLogFile::BaseLogFile(const BaseLogFile &copy)
  */
 BaseLogFile::~BaseLogFile()
 {
-  log_log_trace("entering BaseLogFile destructor, this=%p\n", this);
+  log_log_trace("entering BaseLogFile destructor, m_name=%s, this=%p\n", m_name,this);
 
-  close_file();
-  ats_free(m_name);
+  if (m_is_regfile)
+    close_file();
+  if (m_name)
+    ats_free(m_name);
 
-  log_log_trace("exiting BaseLogFile destructor, this=%p\n", this);
+  log_log_trace("exiting BaseLogFile destructor, this=%p\n", m_name, this);
 }
 
 /*
@@ -239,15 +241,17 @@ BaseLogFile::exists(const char *pathname)
 int
 BaseLogFile::open_file()
 {
-  printf("opening file\n");
+  log_log_trace("BaseLogFile: entered open_file()\n");
   if (is_open()) {
     return LOG_FILE_NO_ERROR;
   }
 
   if (m_name && !strcmp(m_name, "stdout")) {
+    log_log_trace("BaseLogFile: stdout opened\n");
     m_fp = stdout;
     return LOG_FILE_NO_ERROR;
   } else if (m_name && !strcmp(m_name, "stderr")) {
+    log_log_trace("BaseLogFile: stderr opened\n");
     m_fp = stderr;
     return LOG_FILE_NO_ERROR;
   }
@@ -260,6 +264,9 @@ BaseLogFile::open_file()
   bool file_exists = BaseLogFile::exists(m_name);
 
   if (file_exists) {
+    // means this object is representing a real file on disk
+    m_is_regfile = true;
+
     if (!m_meta_info) {
       // This object must be fresh since it has not built its MetaInfo
       // so we create a new MetaInfo object that will read right away
@@ -274,7 +281,7 @@ BaseLogFile::open_file()
 
   // open actual log file (not metainfo)
   // TODO reload perms when possible
-  log_log_trace("attempting to open %s\n", m_name);
+  log_log_trace("BaseLogFile: attempting to open %s\n", m_name);
   m_fp = fopen(m_name, "a+");
 
   if (!m_fp) {
