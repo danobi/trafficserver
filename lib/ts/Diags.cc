@@ -639,6 +639,9 @@ Diags::should_roll_logs()
 bool
 Diags::set_stdout_output(const char *_bind_stdout)
 {
+  if (strcmp(_bind_stdout, "") == 0) 
+    return false;
+
   if (stdout_log) {
     delete stdout_log;
     stdout_log = NULL;
@@ -647,19 +650,20 @@ Diags::set_stdout_output(const char *_bind_stdout)
   // get root
   ElevateAccess elevate(true);
 
-  if (strcmp(_bind_stdout, "") == 0) 
-    return false;
-
   // create backing BaseLogFile for stdout
   stdout_log = new BaseLogFile(_bind_stdout, true /*XXX use real value*/);
 
   // on any errors we quit
   if (!stdout_log || stdout_log->open_file() != BaseLogFile::LOG_FILE_NO_ERROR) {
     fprintf(stdout, "[Warning]: unable to open file=%s to bind stdout to\n",_bind_stdout);
+    delete stdout_log;
+    stdout_log = NULL;
     return false;
   }
   if (!stdout_log->m_fp) {
+    fprintf(stdout, "[Warning]: file pointer for stdout %s = NULL\n",_bind_stdout);
     delete stdout_log;
+    stdout_log = NULL;
     return false;
   }
 
@@ -677,6 +681,9 @@ Diags::set_stdout_output(const char *_bind_stdout)
 bool 
 Diags::set_stderr_output(const char *_bind_stderr)
 {
+  if (strcmp(_bind_stderr, "") == 0) 
+    return false;
+
   if (stderr_log) {
     delete stderr_log;
     stderr_log = NULL;
@@ -684,19 +691,20 @@ Diags::set_stderr_output(const char *_bind_stderr)
   // get root
   ElevateAccess elevate(true);
 
-  if (strcmp(_bind_stderr, "") == 0) 
-    return false;
-
   // create backing BaseLogFile for stdout
   stderr_log = new BaseLogFile(_bind_stderr, true /*XXX use real value*/);
 
   // on any errors we quit
   if (!stderr_log || stderr_log->open_file() != BaseLogFile::LOG_FILE_NO_ERROR) {
     fprintf(stdout, "[Warning]: unable to open file=%s to bind stderr to\n",_bind_stderr);
+    delete stderr_log;
+    stderr_log = NULL;
     return false;
   }
   if (!stderr_log->m_fp) {
+    fprintf(stdout, "[Warning]: file pointer for stderr %s = NULL\n",_bind_stderr);
     delete stderr_log;
+    stderr_log = NULL;
     return false;
   }
 

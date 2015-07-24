@@ -1551,6 +1551,8 @@ main(int /* argc ATS_UNUSED */, const char **argv)
   diags = diagsConfig->diags;
   RecSetDiags(diags);
   diags->prefix_str = "Server ";
+  diags->set_stdout_output(bind_stdout);
+  diags->set_stderr_output(bind_stderr);
   if (is_debug_tag_set("diags"))
     diags->dump();
 
