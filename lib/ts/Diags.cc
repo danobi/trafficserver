@@ -102,8 +102,8 @@ SrcLoc::str(char *buf, int buflen) const
 //////////////////////////////////////////////////////////////////////////////
 
 Diags::Diags(const char *bdt, const char *bat, BaseLogFile *_diags_log)
-  : magic(DIAGS_MAGIC), show_location(0), base_debug_tags(NULL), base_action_tags(NULL), rollcounter(0),
-    stdout_log(NULL), stderr_log(NULL)
+  : magic(DIAGS_MAGIC), show_location(0), base_debug_tags(NULL), base_action_tags(NULL), stdout_log(NULL), stderr_log(NULL), rollcounter(0)
+   
 {
   int i;
 
@@ -669,7 +669,7 @@ Diags::set_stdout_output(const char *_bind_stdout)
 
   // bind stdout to file
   fprintf(stdout, "binding stdout to %s!\n",_bind_stdout);
-  rebind_stdout(fileno(stdout_log->m_fp));
+  return rebind_stdout(fileno(stdout_log->m_fp));
 }
 
 /*
@@ -710,7 +710,7 @@ Diags::set_stderr_output(const char *_bind_stderr)
 
   // bind stdout to file
   fprintf(stdout, "binding stderr to %s!\n",_bind_stderr);
-  rebind_stderr(fileno(stderr_log->m_fp));
+  return rebind_stderr(fileno(stderr_log->m_fp));
 }
 
 /*
