@@ -244,6 +244,9 @@ public:
 
   bool should_roll_logs();
 
+  bool set_stdout_output(const char *_bind_stdout);
+  bool set_stderr_output(const char *_bind_stderr);
+
   const char *base_debug_tags;  // internal copy of default debug tags
   const char *base_action_tags; // internal copy of default action tags
 
@@ -252,6 +255,8 @@ private:
   DFA *activated_tags[2];           // 1 table for debug, 1 for action
   int rollcounter;
   void setup_diagslog(BaseLogFile *blf);
+  bool rebind_stdout(int new_fd);
+  bool rebind_stderr(int new_fd);
   void
   lock() const
   {

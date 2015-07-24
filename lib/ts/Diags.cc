@@ -102,7 +102,8 @@ SrcLoc::str(char *buf, int buflen) const
 //////////////////////////////////////////////////////////////////////////////
 
 Diags::Diags(const char *bdt, const char *bat, BaseLogFile *_diags_log)
-  : magic(DIAGS_MAGIC), show_location(0), base_debug_tags(NULL), base_action_tags(NULL), rollcounter(0)
+  : magic(DIAGS_MAGIC), show_location(0), base_debug_tags(NULL), base_action_tags(NULL), rollcounter(0),
+    stdout_log(NULL), stderr_log(NULL)
 {
   int i;
 
@@ -302,27 +303,31 @@ Diags::print_va(const char *debug_tag, DiagsLevel diags_level, const SrcLoc *loc
   }
 
   if (config.outputs[diags_level].to_stdout) {
-    va_list ap_scratch;
-    va_copy(ap_scratch, ap);
-    buffer = format_buf_w_ts;
-    vfprintf(stdout, buffer, ap_scratch);
-    {
-      int len = strlen(buffer);
-      if (len > 0 && buffer[len - 1] != '\n') {
-        putc('\n', stdout);
+    if (stdout_log && stdout_log->m_fp) {
+      va_list ap_scratch;
+      va_copy(ap_scratch, ap);
+      buffer = format_buf_w_ts;
+      vfprintf(stdout_log->m_fp, buffer, ap_scratch);
+      {
+        int len = strlen(buffer);
+        if (len > 0 && buffer[len - 1] != '\n') {
+          putc('\n', stdout_log->m_fp);
+        }
       }
     }
   }
 
   if (config.outputs[diags_level].to_stderr) {
-    va_list ap_scratch;
-    va_copy(ap_scratch, ap);
-    buffer = format_buf_w_ts;
-    vfprintf(stderr, buffer, ap_scratch);
-    {
-      int len = strlen(buffer);
-      if (len > 0 && buffer[len - 1] != '\n') {
-        putc('\n', stderr);
+    if (stderr_log && stderr_log->m_fp) {
+      va_list ap_scratch;
+      va_copy(ap_scratch, ap);
+      buffer = format_buf_w_ts;
+      vfprintf(stderr_log->m_fp, buffer, ap_scratch);
+      {
+        int len = strlen(buffer);
+        if (len > 0 && buffer[len - 1] != '\n') {
+          putc('\n', stderr_log->m_fp);
+        }
       }
     }
   }
@@ -568,6 +573,7 @@ Diags::setup_diagslog(BaseLogFile *blf)
       int status;
       status = setvbuf(blf->m_fp, NULL, _IOLBF, 512);
       if (status != 0) {
+        blf->close_file();
         delete blf;
         diags_log = NULL;
       }
@@ -603,6 +609,108 @@ Diags::should_roll_logs()
       rollcounter = 0;
       return true;
     }
+  }
+  return false;
+}
+
+/*
+ * Binds stdout to _bind_stdout, provided that _bind_stdout != "".
+ * Also sets up a BaseLogFile for stdout.
+ *
+ * Returns true on binding and setup, false otherwise
+ */
+bool
+Diags::set_stdout_output(const char *_bind_stdout)
+{
+  // get root
+  ElevateAccess elevate(true);
+
+  if (strcmp(_bind_stdout, "") == 0) 
+    return false;
+
+  // create backing BaseLogFile for stdout
+  stdout_log = new BaseLogFile(_bind_stdout, true /*XXX use real value*/);
+
+  // on any errors we quit
+  if (!stdout_log || stdout_log->open_file() != BaseLogFile::LOG_FILE_NO_ERROR) {
+    fprintf(stdout, "[Warning]: unable to open file=%s to bind stdout to\n",_bind_stdout);
+    return false;
+  }
+  if (!stdout_log->m_fp) {
+    delete stdout_log;
+    return false;
+  }
+
+  // bind stdout to file
+  fprintf(stdout, "binding stdout to %s!\n",_bind_stdout);
+  rebind_stdout(fileno(stdout_log->m_fp));
+}
+
+/*
+ * Binds stderr to _bind_stderr, provided that _bind_stderr != "".
+ * Also sets up a BaseLogFile for stderr.
+ *
+ * Returns true on binding and setup, false otherwise
+ */
+bool 
+Diags::set_stderr_output(const char *_bind_stderr)
+{
+  // get root
+  ElevateAccess elevate(true);
+
+  if (strcmp(_bind_stderr, "") == 0) 
+    return false;
+
+  // create backing BaseLogFile for stdout
+  stderr_log = new BaseLogFile(_bind_stderr, true /*XXX use real value*/);
+
+  // on any errors we quit
+  if (!stderr_log || stderr_log->open_file() != BaseLogFile::LOG_FILE_NO_ERROR) {
+    fprintf(stdout, "[Warning]: unable to open file=%s to bind stderr to\n",_bind_stderr);
+    return false;
+  }
+  if (!stderr_log->m_fp) {
+    delete stderr_log;
+    return false;
+  }
+
+  // bind stdout to file
+  fprintf(stdout, "binding stderr to %s!\n",_bind_stderr);
+  rebind_stderr(fileno(stderr_log->m_fp));
+}
+
+/*
+ * Helper function that rebinds stdout to specified file descriptor
+ *
+ * Returns true on success, false otherwise
+ */
+bool
+Diags::rebind_stdout(int new_fd)
+{
+  if (new_fd < 0) 
+    fprintf(stdout, "[Warning]: TS unable to bind stdout to new file descriptor=%d",new_fd);
+  else {
+    fprintf(stdout, "duping stdout!\n");
+    dup2(new_fd, STDOUT_FILENO);
+    return true;
+  }
+  return false;
+}
+
+/*
+ * Helper function that rebinds stderr to specified file descriptor
+ *
+ * Returns true on success, false otherwise
+ */
+bool
+Diags::rebind_stderr(int new_fd)
+{
+  if (new_fd < 0) 
+    fprintf(stdout, "[Warning]: TS unable to bind stderr to new file descriptor=%d",new_fd);
+  else {
+    fprintf(stdout, "duping stderr!\n");
+    dup2(new_fd, STDERR_FILENO);
+    return true;
   }
   return false;
 }
