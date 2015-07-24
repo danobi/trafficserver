@@ -574,24 +574,26 @@ main(int argc, const char **argv)
     lmgmt->proxy_options = tsArgs;
     mgmt_log(stderr, "[main] Traffic Server Args: '%s'\n", lmgmt->proxy_options);
   }
-  
+
   // we must pass in bind_stdout and bind_stderr values to TS
   // we do it so TS is able to create BaseLogFiles for each value
-  if (strcmp(bind_stdout,"") != 0) {
-    lmgmt->proxy_options = (char*)ats_realloc(lmgmt->proxy_options,strlen(lmgmt->proxy_options) + 1 /* space */
-                                      + strlen("--bind_stdout ") + strlen(bind_stdout) + 1 /* null term */);
-    strcat(lmgmt->proxy_options," --bind_stdout "); 
-    strcat(lmgmt->proxy_options,bind_stdout); 
+  if (strcmp(bind_stdout, "") != 0) {
+    lmgmt->proxy_options =
+      (char *)ats_realloc(lmgmt->proxy_options, strlen(lmgmt->proxy_options) + 1 /* space */
+                                                  + strlen("--bind_stdout ") + strlen(bind_stdout) + 1 /* null term */);
+    strcat(lmgmt->proxy_options, " --bind_stdout ");
+    strcat(lmgmt->proxy_options, bind_stdout);
   }
-  printf("traffic_server opts = %s\n",lmgmt->proxy_options);
+  printf("traffic_server opts = %s\n", lmgmt->proxy_options);
 
-  if (strcmp(bind_stderr,"") != 0) {
-    lmgmt->proxy_options = (char*)ats_realloc(lmgmt->proxy_options,strlen(lmgmt->proxy_options) + 1 /* space */
-                                      + strlen("--bind_stderr ") + strlen(bind_stderr) + 1 /* null term */);
-    strcat(lmgmt->proxy_options," --bind_stderr "); 
-    strcat(lmgmt->proxy_options,bind_stderr); 
+  if (strcmp(bind_stderr, "") != 0) {
+    lmgmt->proxy_options =
+      (char *)ats_realloc(lmgmt->proxy_options, strlen(lmgmt->proxy_options) + 1 /* space */
+                                                  + strlen("--bind_stderr ") + strlen(bind_stderr) + 1 /* null term */);
+    strcat(lmgmt->proxy_options, " --bind_stderr ");
+    strcat(lmgmt->proxy_options, bind_stderr);
   }
-  printf("traffic_server opts = %s\n",lmgmt->proxy_options);
+  printf("traffic_server opts = %s\n", lmgmt->proxy_options);
 
   if (proxy_port) {
     HttpProxyPort::loadValue(lmgmt->m_proxy_ports, proxy_port);
