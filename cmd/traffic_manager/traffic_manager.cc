@@ -430,28 +430,6 @@ main(int argc, const char **argv)
   // Process command line arguments and dump into variables
   process_args(&appVersionInfo, argument_descriptions, countof(argument_descriptions), argv);
 
-  // Bind stdout and stderr specified switches
-  // XXX make function for this
-  int log_fd;
-  if (strcmp(bind_stdout, "") != 0) {
-    log_fd = open(bind_stdout, O_WRONLY | O_APPEND | O_CREAT, 0644);
-    if (log_fd < 0) {
-      fprintf(stdout, "[Warning]: TM unable to open log file \"%s\" [%d '%s']\n", bind_stdout, errno, strerror(errno));
-    } else {
-      dup2(log_fd, STDOUT_FILENO);
-      close(log_fd);
-    }
-  }
-  if (strcmp(bind_stderr, "") != 0) {
-    log_fd = open(bind_stderr, O_WRONLY | O_APPEND | O_CREAT, 0644);
-    if (log_fd < 0) {
-      fprintf(stdout, "[Warning]: TM unable to open log file \"%s\" [%d '%s']\n", bind_stderr, errno, strerror(errno));
-    } else {
-      dup2(log_fd, STDERR_FILENO);
-      close(log_fd);
-    }
-  }
-
   // change the directory to the "root" directory
   chdir_root();
 
@@ -478,6 +456,8 @@ main(int argc, const char **argv)
   //  up the manager
   diagsConfig = new DiagsConfig(DIAGS_LOG_FILENAME, debug_tags, action_tags, false);
   diags = diagsConfig->diags;
+  diags->set_stdout_output(bind_stdout);
+  diags->set_stderr_output(bind_stderr);
   diags->prefix_str = "Manager ";
 
   RecLocalInit();
@@ -524,6 +504,8 @@ main(int argc, const char **argv)
   diags = diagsConfig->diags;
   RecSetDiags(diags);
   diags->prefix_str = "Manager ";
+  diags->set_stdout_output(bind_stdout);
+  diags->set_stderr_output(bind_stderr);
 
   if (is_debug_tag_set("diags"))
     diags->dump();
