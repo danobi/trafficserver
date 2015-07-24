@@ -438,7 +438,6 @@ main(int argc, const char **argv)
     if (log_fd < 0) {
       fprintf(stdout, "[Warning]: TM unable to open log file \"%s\" [%d '%s']\n", bind_stdout, errno, strerror(errno));
     } else {
-      printf("TM, log_fd = %d\n", log_fd);
       dup2(log_fd, STDOUT_FILENO);
       close(log_fd);
     }
