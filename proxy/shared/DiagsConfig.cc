@@ -299,8 +299,8 @@ DiagsConfig::DiagsConfig(const char *filename, const char *tags, const char *act
   ink_filepath_make(diags_logpath, sizeof(diags_logpath), logpath, filename);
 
   // Set up diags, FILE streams are opened in Diags constructor
-  base_log_file = new BaseLogFile(diags_logpath, false);
-  diags = new Diags(tags, actions, base_log_file);
+  diags_log = new BaseLogFile(diags_logpath, false);
+  diags = new Diags(tags, actions, diags_log);
   diags->print(NULL, DTA(DL_Status), "opened %s", diags_logpath);
 
   register_diags_callbacks();

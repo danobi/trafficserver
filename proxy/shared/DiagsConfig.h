@@ -39,7 +39,7 @@ struct DiagsConfig {
 private:
   bool callbacks_established;
   // FILE *diags_log_fp;
-  BaseLogFile *base_log_file;
+  BaseLogFile *diags_log;
 
 public:
   Diags *diags;

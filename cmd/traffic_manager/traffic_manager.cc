@@ -602,7 +602,7 @@ main(int argc, const char **argv)
     strcat(lmgmt->proxy_options," --bind_stdout "); 
     strcat(lmgmt->proxy_options,bind_stdout); 
   }
-  printf("WOOO opts = %s\n",lmgmt->proxy_options);
+  printf("traffic_server opts = %s\n",lmgmt->proxy_options);
 
   if (strcmp(bind_stderr,"") != 0) {
     lmgmt->proxy_options = (char*)ats_realloc(lmgmt->proxy_options,strlen(lmgmt->proxy_options) + 1 /* space */
@@ -610,7 +610,7 @@ main(int argc, const char **argv)
     strcat(lmgmt->proxy_options," --bind_stderr "); 
     strcat(lmgmt->proxy_options,bind_stderr); 
   }
-  printf("WOOO opts = %s\n",lmgmt->proxy_options);
+  printf("traffic_server opts = %s\n",lmgmt->proxy_options);
 
   if (proxy_port) {
     HttpProxyPort::loadValue(lmgmt->m_proxy_ports, proxy_port);

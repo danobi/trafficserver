@@ -1371,6 +1371,40 @@ change_uid_gid(const char *user)
 #endif
 }
 
+/*
+ * Binds stdout and stderr to files specified by the parameters
+ * 
+ * On failure to bind, emits a warning and whatever is being bound
+ * just isn't bound
+ */
+void bind_outputs(const char *_bind_stdout, const char *_bind_stderr)
+{
+  ElevateAccess a(true);
+  int log_fd;
+  if (strcmp(_bind_stdout, "") != 0) {
+    fprintf(stdout, "binding stdout to %s!\n",_bind_stdout);
+    log_fd = open(_bind_stdout, O_WRONLY | O_APPEND | O_CREAT, 0644);
+    if (log_fd < 0) {
+      fprintf(stdout, "[Warning]: TS unable to open log file \"%s\" [%d '%s']\n", _bind_stdout, errno, strerror(errno));
+    } else {
+      fprintf(stdout, "duping stdout!\n");
+      dup2(log_fd, STDOUT_FILENO);
+      close(log_fd);
+    }
+  }
+  if (strcmp(_bind_stderr, "") != 0) {
+    fprintf(stdout, "binding stderr to %s!\n",_bind_stderr);
+    log_fd = open(_bind_stderr, O_WRONLY | O_APPEND | O_CREAT, 0644);
+    if (log_fd < 0) {
+      fprintf(stdout, "[Warning]: TS unable to open log file \"%s\" [%d '%s']\n", _bind_stderr, errno, strerror(errno));
+    } else {
+      fprintf(stdout, "duping stderr!\n");
+      dup2(log_fd, STDERR_FILENO);
+      close(log_fd);
+    }
+  }
+}
+
 //
 // Main
 //
@@ -1406,32 +1440,8 @@ main(int /* argc ATS_UNUSED */, const char **argv)
   command_valid = command_flag && command_index >= 0;
 
   // Bind stdout and stderr to specified switches
-  // XXX make function for this
-  ElevateAccess *a = new ElevateAccess(true);
-  int log_fd;
-  if (strcmp(bind_stdout, "") != 0) {
-    fprintf(stdout, "binding stdout to %s!\n",bind_stdout);
-    log_fd = open(bind_stdout, O_WRONLY | O_APPEND | O_CREAT, 0644);
-    if (log_fd < 0) {
-      fprintf(stdout, "[Warning]: TS unable to open log file \"%s\" [%d '%s']\n", bind_stdout, errno, strerror(errno));
-    } else {
-      fprintf(stdout, "duping stdout!\n");
-      dup2(log_fd, STDOUT_FILENO);
-      close(log_fd);
-    }
-  }
-  if (strcmp(bind_stderr, "") != 0) {
-    fprintf(stdout, "binding stderr to %s!\n",bind_stderr);
-    log_fd = open(bind_stderr, O_WRONLY | O_APPEND | O_CREAT, 0644);
-    if (log_fd < 0) {
-      fprintf(stdout, "[Warning]: TS unable to open log file \"%s\" [%d '%s']\n", bind_stderr, errno, strerror(errno));
-    } else {
-      fprintf(stdout, "duping stderr!\n");
-      dup2(log_fd, STDERR_FILENO);
-      close(log_fd);
-    }
-  }
-  delete a;
+  // XXX possibly unneeded with Diags now binding stdout and stderr??
+  bind_outputs(bind_stdout, bind_stderr); 
 
   // Specific validity checks.
   if (*conf_dir && command_index != find_cmd_index(CMD_VERIFY_CONFIG)) {
@@ -1459,6 +1469,8 @@ main(int /* argc ATS_UNUSED */, const char **argv)
   diagsConfig = new DiagsConfig(DIAGS_LOG_FILENAME, error_tags, action_tags, false);
   diags = diagsConfig->diags;
   diags->prefix_str = "Server ";
+  diags->set_stdout_output(bind_stdout);
+  diags->set_stderr_output(bind_stderr);
   if (is_debug_tag_set("diags"))
     diags->dump();
 
