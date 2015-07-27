@@ -103,7 +103,7 @@ SrcLoc::str(char *buf, int buflen) const
 
 Diags::Diags(const char *bdt, const char *bat, BaseLogFile *_diags_log)
   : magic(DIAGS_MAGIC), show_location(0), base_debug_tags(NULL), base_action_tags(NULL), stdout_log(NULL), stderr_log(NULL),
-    rollcounter(0)
+    diags_log_cb(NULL), stdout_log_cb(NULL), stderr_log_cb(NULL), rollcounter(0)
 
 {
   int i;
@@ -603,47 +603,72 @@ Diags::setup_diagslog(BaseLogFile *blf)
 
 /*
  * Checks diags_log, stdout_log, and stderr_log if their underlying files on disk
- * need to be rolled, and does so if necessary
+ * need to be rolled, and does so if necessary. The callback associated with each
+ * BaseLogFile is then called. This was done so as to separate policy from
+ * mechanism while still allowing a signal to be sent from TS to TM to indicate
+ * that logs have been rolled.
  *
  * This function will replace the current BaseLogFile object with a
  * new one (if we choose to roll), as each BaseLogFile object logically
  * represents one file on disk
  *
- * This function will also call lock() to prevent race conditions
+ * This function will also call lock() to prevent race conditions. Note that,
+ * however, cross process race conditions may still exist, and further work with
+ * flock() for fcntl() may still need to be done.
  *
- * Returns true if rolled, false otherwise
+ * Returns true if any logs rolled, false otherwise
  */
 bool
 Diags::should_roll_logs()
 {
-  // XXX REMOVE!!
-  // return false;
+  lock();
 
-  // XXX use actual config values to roll
+  bool ret_val = false;
+
   /*
+  // Roll diags_log if necessary
+  // XXX use actual config values to roll
   if (++rollcounter == 50) {
     if (diags_log->roll()) {
       const char *oldname = ats_strdup(diags_log->get_name());
       delete diags_log;
       setup_diagslog(new BaseLogFile(oldname, false));
       rollcounter = 0;
-      return true;
+      diags_log_cb(NULL);
+      ret_val = true;
     }
   }
-  return false;
   */
+
+  // Roll stdout_log if necessary
   if (++rollcounter == 50) {
+    rollcounter = 0;
+
     if (stdout_log->roll()) {
       const char *oldname = ats_strdup(stdout_log->get_name());
       set_stdout_output(oldname);
+      ats_free(oldname);
+
+      // if stderr and stdout are redirected to the same place, we should
+      // update the stderr_log object as well
       if (!strcmp(oldname, stderr_log->get_name())) {
         set_stderr_output(oldname);
       }
-      rollcounter = 0;
-      return true;
+
+      // run stdout_log callback function
+      if (stdout_log_cb)
+        stdout_log_cb(NULL);
+
+      ret_val = true;
     }
   }
-  return false;
+
+  // Roll stderr_log if necessary
+  // XXX TODO
+
+  
+  unlock();
+  return ret_val;
 }
 
 /*
@@ -651,6 +676,9 @@ Diags::should_roll_logs()
  * Also sets up a BaseLogFile for stdout.
  *
  * Returns true on binding and setup, false otherwise
+ *
+ * TODO make this a generic function (ie combine set_stdout_output and
+ * set_stderr_output
  */
 bool
 Diags::set_stdout_output(const char *_bind_stdout)
