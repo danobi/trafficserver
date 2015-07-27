@@ -218,6 +218,16 @@ private:
 
   // member functions
   int timestamp_to_str(long timestamp, char *buf, int size);
+  void
+  lock_rotate() const
+  {
+    ink_mutex_acquire(&rotation_lock);
+  }
+  void
+  unlock_rotate() const
+  {
+    ink_mutex_release(&rotation_lock);
+  }
 
   // member variables
   char *m_name;
@@ -225,5 +235,6 @@ private:
   uint64_t m_signature;
   bool m_is_bootstrap;
   BaseMetaInfo *m_meta_info;
+  mutable ink_mutex rotation_lock; // prevents reconfig/read races
 };
 #endif

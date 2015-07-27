@@ -35,6 +35,7 @@ BaseLogFile::BaseLogFile(const char *name, bool is_bootstrap)
   m_end_time = 0L;
   m_bytes_written = 0;
   m_meta_info = NULL;
+  ink_mutex_init(&rotation_lock, "BaseLogFile::rotation_lock");
 
   log_log_trace("exiting BaseLogFile constructor, m_name=%s, this=%p\n", m_name, this);
 }
@@ -46,6 +47,7 @@ BaseLogFile::BaseLogFile(const BaseLogFile &copy)
   : m_fp(NULL), m_start_time(0L), m_end_time(0L), m_bytes_written(0), m_name(ats_strdup(copy.m_name)), m_is_regfile(false),
     m_is_bootstrap(copy.m_is_bootstrap), m_meta_info(NULL)
 {
+  ink_mutex_init(&rotation_lock, "BaseLogFile::rotation_lock");
   log_log_trace("exiting BaseLogFile copy constructor, m_name=%s, this=%p\n", m_name, this);
 }
 
@@ -209,7 +211,10 @@ BaseLogFile::roll()
   if (!m_meta_info || !m_meta_info->get_creation_time(&start))
     start = 0L;
 
-  return roll(start, now);
+  lock_rotate();
+  int rel = roll(start,now);
+  unlock_rotate();
+  return rel;
 }
 
 

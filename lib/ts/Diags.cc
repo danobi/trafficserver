@@ -304,7 +304,7 @@ Diags::print_va(const char *debug_tag, DiagsLevel diags_level, const SrcLoc *loc
   // now, finally, output the message //
   //////////////////////////////////////
 
-  lock_tag();
+  lock();
   if (config.outputs[diags_level].to_diagslog) {
     if (diags_log && diags_log->m_fp) {
       va_list ap_scratch;
@@ -351,7 +351,7 @@ Diags::print_va(const char *debug_tag, DiagsLevel diags_level, const SrcLoc *loc
   }
 
 #if !defined(freebsd)
-  unlock_tag();
+  unlock();
 #endif
 
   if (config.outputs[diags_level].to_syslog) {
@@ -393,7 +393,7 @@ Diags::print_va(const char *debug_tag, DiagsLevel diags_level, const SrcLoc *loc
     syslog(priority, "%s", syslog_buffer);
   }
 #if defined(freebsd)
-  unlock_tag();
+  unlock();
 #endif
 }
 
@@ -417,10 +417,10 @@ Diags::tag_activated(const char *tag, DiagsTagType mode) const
   if (tag == NULL)
     return (true);
 
-  lock_tag();
+  lock();
   if (activated_tags[mode])
     activated = (activated_tags[mode]->match(tag) != -1);
-  unlock_tag();
+  unlock();
 
   return (activated);
 }
@@ -441,13 +441,13 @@ void
 Diags::activate_taglist(const char *taglist, DiagsTagType mode)
 {
   if (taglist) {
-    lock_tag();
+    lock();
     if (activated_tags[mode]) {
       delete activated_tags[mode];
     }
     activated_tags[mode] = new DFA;
     activated_tags[mode]->compile(taglist);
-    unlock_tag();
+    unlock();
   }
 }
 
@@ -465,12 +465,12 @@ Diags::activate_taglist(const char *taglist, DiagsTagType mode)
 void
 Diags::deactivate_all(DiagsTagType mode)
 {
-  lock_tag();
+  lock();
   if (activated_tags[mode]) {
     delete activated_tags[mode];
     activated_tags[mode] = NULL;
   }
-  unlock_tag();
+  unlock();
 }
 
 
@@ -621,7 +621,6 @@ Diags::setup_diagslog(BaseLogFile *blf)
 bool
 Diags::should_roll_logs()
 {
-  lock_rotate();
   bool ret_val = false;
 
   /*
@@ -664,7 +663,6 @@ Diags::should_roll_logs()
   // Roll stderr_log if necessary
   // XXX TODO
 
-  unlock_rotate();
   return ret_val;
 }
 
