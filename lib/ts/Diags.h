@@ -152,6 +152,9 @@ public:
   BaseLogFile *diags_log;
   BaseLogFile *stdout_log;
   BaseLogFile *stderr_log;
+  void (*diags_log_cb)(void *);
+  void (*stdout_log_cb)(void *);
+  void (*stderr_log_cb)(void *);
   const unsigned int magic;
   volatile DiagsConfigState config;
   int show_location;
