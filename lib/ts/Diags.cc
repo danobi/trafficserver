@@ -647,7 +647,6 @@ Diags::should_roll_logs()
     if (stdout_log->roll()) {
       const char *oldname = ats_strdup(stdout_log->get_name());
       set_stdout_output(oldname);
-      ats_free(oldname);
 
       // if stderr and stdout are redirected to the same place, we should
       // update the stderr_log object as well
