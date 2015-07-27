@@ -641,7 +641,7 @@ Diags::should_roll_logs()
   */
 
   // Roll stdout_log if necessary
-  if (++rollcounter == 50) {
+  if (++rollcounter == 500) {
     rollcounter = 0;
 
     if (stdout_log->roll()) {

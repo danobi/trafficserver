@@ -206,7 +206,7 @@ BaseLogFile::roll()
   long start;
   time_t now = time(NULL);
 
-  if (!m_meta_info->get_creation_time(&start))
+  if (!m_meta_info || !m_meta_info->get_creation_time(&start))
     start = 0L;
 
   return roll(start, now);
@@ -265,14 +265,15 @@ BaseLogFile::open_file()
 
   // get root; destructor will release access
   // ElevateAccess accesss(true);
+  
+  // means this object is representing a real file on disk
+  m_is_regfile = true;
 
   // Check to see if the file exists BEFORE we try to open it, since
   // opening it will also create it.
   bool file_exists = BaseLogFile::exists(m_name);
 
   if (file_exists) {
-    // means this object is representing a real file on disk
-    m_is_regfile = true;
 
     if (!m_meta_info) {
       // This object must be fresh since it has not built its MetaInfo
