@@ -304,7 +304,7 @@ Diags::print_va(const char *debug_tag, DiagsLevel diags_level, const SrcLoc *loc
   // now, finally, output the message //
   //////////////////////////////////////
 
-  lock();
+  lock_tag();
   if (config.outputs[diags_level].to_diagslog) {
     if (diags_log && diags_log->m_fp) {
       va_list ap_scratch;
@@ -351,7 +351,7 @@ Diags::print_va(const char *debug_tag, DiagsLevel diags_level, const SrcLoc *loc
   }
 
 #if !defined(freebsd)
-  unlock();
+  unlock_tag();
 #endif
 
   if (config.outputs[diags_level].to_syslog) {
@@ -621,6 +621,7 @@ Diags::setup_diagslog(BaseLogFile *blf)
 bool
 Diags::should_roll_logs()
 {
+  lock_rotate();
   bool ret_val = false;
 
   /*
@@ -663,6 +664,7 @@ Diags::should_roll_logs()
   // Roll stderr_log if necessary
   // XXX TODO
 
+  unlock_rotate();
   return ret_val;
 }
 
