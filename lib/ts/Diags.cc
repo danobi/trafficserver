@@ -110,6 +110,7 @@ Diags::Diags(const char *bdt, const char *bat, BaseLogFile *_diags_log)
 
   cleanup_func = NULL;
   ink_mutex_init(&tag_table_lock, "Diags::tag_table_lock");
+  ink_mutex_init(&counter_lock, "Diags::counter_lock");
 
   ////////////////////////////////////////////////////////
   // initialize the default, base debugging/action tags //
@@ -639,7 +640,16 @@ Diags::should_roll_logs()
   */
 
   // Roll stdout_log if necessary
-  if (++rollcounter == 500) {
+  bool go = false;
+  lock_c();
+  ++rollcounter;
+  if (rollcounter >= 500) {
+    go = true;
+    rollcounter = 0;
+  }
+  unlock_c();
+
+  if (go) {
     rollcounter = 0;
 
     if (stdout_log->roll()) {

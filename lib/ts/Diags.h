@@ -255,6 +255,7 @@ public:
 
 private:
   mutable ink_mutex tag_table_lock; // prevents reconfig/read races
+  mutable ink_mutex counter_lock;
   DFA *activated_tags[2];           // 1 table for debug, 1 for action
   int rollcounter;
   void setup_diagslog(BaseLogFile *blf);
@@ -269,6 +270,16 @@ private:
   unlock() const
   {
     ink_mutex_release(&tag_table_lock);
+  }
+  void
+  lock_c() const
+  {
+    ink_mutex_acquire(&counter_lock);
+  }
+  void
+  unlock_c() const
+  {
+    ink_mutex_release(&counter_lock);
   }
 };
 
