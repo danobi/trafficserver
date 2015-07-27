@@ -393,7 +393,7 @@ Diags::print_va(const char *debug_tag, DiagsLevel diags_level, const SrcLoc *loc
     syslog(priority, "%s", syslog_buffer);
   }
 #if defined(freebsd)
-  unlock();
+  unlock_tag();
 #endif
 }
 
@@ -417,10 +417,10 @@ Diags::tag_activated(const char *tag, DiagsTagType mode) const
   if (tag == NULL)
     return (true);
 
-  lock();
+  lock_tag();
   if (activated_tags[mode])
     activated = (activated_tags[mode]->match(tag) != -1);
-  unlock();
+  unlock_tag();
 
   return (activated);
 }
@@ -441,13 +441,13 @@ void
 Diags::activate_taglist(const char *taglist, DiagsTagType mode)
 {
   if (taglist) {
-    lock();
+    lock_tag();
     if (activated_tags[mode]) {
       delete activated_tags[mode];
     }
     activated_tags[mode] = new DFA;
     activated_tags[mode]->compile(taglist);
-    unlock();
+    unlock_tag();
   }
 }
 
@@ -465,12 +465,12 @@ Diags::activate_taglist(const char *taglist, DiagsTagType mode)
 void
 Diags::deactivate_all(DiagsTagType mode)
 {
-  lock();
+  lock_tag();
   if (activated_tags[mode]) {
     delete activated_tags[mode];
     activated_tags[mode] = NULL;
   }
-  unlock();
+  unlock_tag();
 }
 
 
