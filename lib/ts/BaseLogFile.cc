@@ -203,6 +203,10 @@ BaseLogFile::roll(long interval_start, long interval_end)
 int
 BaseLogFile::roll()
 {
+  // make sure object is fully initialized
+  if (!is_open())
+    return 0;
+
   long start;
   time_t now = time(NULL);
 
