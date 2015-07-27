@@ -621,6 +621,7 @@ Diags::setup_diagslog(BaseLogFile *blf)
 bool
 Diags::should_roll_logs()
 {
+  lock();
   bool ret_val = false;
 
   /*
@@ -663,6 +664,7 @@ Diags::should_roll_logs()
   // Roll stderr_log if necessary
   // XXX TODO
 
+  unlock();
   return ret_val;
 }
 
