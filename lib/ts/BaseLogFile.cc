@@ -28,10 +28,10 @@
  * This is the most common way BaseLogFiles are created.
  */
 BaseLogFile::BaseLogFile(const char *name, bool is_bootstrap)
-  : m_name(ats_strdup(name)), m_is_regfile(false), m_is_bootstrap(is_bootstrap)
+  : m_name(ats_strdup(name)), m_is_regfile(false), m_is_bootstrap(is_bootstrap), m_is_init(false)
 {
   m_fp = NULL;
-  m_start_time = 0L;
+  m_start_time = time(0);
   m_end_time = 0L;
   m_bytes_written = 0;
   m_meta_info = NULL;
@@ -43,8 +43,8 @@ BaseLogFile::BaseLogFile(const char *name, bool is_bootstrap)
  * This copy constructor creates a BaseLogFile based on a given copy.
  */
 BaseLogFile::BaseLogFile(const BaseLogFile &copy)
-  : m_fp(NULL), m_start_time(0L), m_end_time(0L), m_bytes_written(0), m_name(ats_strdup(copy.m_name)), m_is_regfile(false),
-    m_is_bootstrap(copy.m_is_bootstrap), m_meta_info(NULL)
+  : m_fp(NULL), m_start_time(copy.m_start_time), m_end_time(0L), m_bytes_written(0), m_name(ats_strdup(copy.m_name)),
+    m_is_regfile(false), m_is_bootstrap(copy.m_is_bootstrap), m_meta_info(NULL), m_is_init(copy.m_is_init)
 {
   log_log_trace("exiting BaseLogFile copy constructor, m_name=%s, this=%p\n", m_name, this);
 }
@@ -256,16 +256,18 @@ BaseLogFile::open_file()
   if (m_name && !strcmp(m_name, "stdout")) {
     log_log_trace("BaseLogFile: stdout opened\n");
     m_fp = stdout;
+    m_is_init = true;
     return LOG_FILE_NO_ERROR;
   } else if (m_name && !strcmp(m_name, "stderr")) {
     log_log_trace("BaseLogFile: stderr opened\n");
     m_fp = stderr;
+    m_is_init = true;
     return LOG_FILE_NO_ERROR;
   }
 
   // get root; destructor will release access
   // ElevateAccess accesss(true);
-  
+
   // means this object is representing a real file on disk
   m_is_regfile = true;
 
@@ -274,7 +276,6 @@ BaseLogFile::open_file()
   bool file_exists = BaseLogFile::exists(m_name);
 
   if (file_exists) {
-
     if (!m_meta_info) {
       // This object must be fresh since it has not built its MetaInfo
       // so we create a new MetaInfo object that will read right away
@@ -301,6 +302,7 @@ BaseLogFile::open_file()
   m_bytes_written = fseek(m_fp, 0, SEEK_CUR);
 
   log_log_trace("BaseLogFile %s is now open (fd=%d)\n", m_name, fileno(m_fp));
+  m_is_init = true;
   return LOG_FILE_NO_ERROR;
 }
 
@@ -314,6 +316,7 @@ BaseLogFile::close_file()
     fclose(m_fp);
     log_log_trace("BaseLogFile %s is closed\n", m_name);
     m_fp = NULL;
+    m_is_init = false;
   }
 }
 

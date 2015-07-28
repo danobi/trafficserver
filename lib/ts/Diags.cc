@@ -110,6 +110,7 @@ Diags::Diags(const char *bdt, const char *bat, BaseLogFile *_diags_log)
 
   cleanup_func = NULL;
   ink_mutex_init(&tag_table_lock, "Diags::tag_table_lock");
+  ink_mutex_init(&rotate_lock, "Diags::rotate_lock");
 
   ////////////////////////////////////////////////////////
   // initialize the default, base debugging/action tags //
@@ -622,6 +623,9 @@ bool
 Diags::should_roll_logs()
 {
   bool ret_val = false;
+  int lockval = ink_mutex_try_acquire(&rotate_lock);
+  if (lockval != 0)
+    return ret_val;
 
   /*
   // Roll diags_log if necessary
@@ -639,9 +643,13 @@ Diags::should_roll_logs()
   */
 
   // Roll stdout_log if necessary
-  if (++rollcounter == 500) {
-    rollcounter = 0;
+  if (!stdout_log || !stdout_log->is_init())
+    return false;
 
+  struct stat buf;
+  fstat(fileno(stdout_log->m_fp), &buf);
+  int size = buf.st_size;
+  if (size >= 100 * 1024) {
     if (stdout_log->roll()) {
       const char *oldname = ats_strdup(stdout_log->get_name());
       set_stdout_output(oldname);
@@ -663,6 +671,9 @@ Diags::should_roll_logs()
   // Roll stderr_log if necessary
   // XXX TODO
 
+
+  if (lockval == 0)
+    ink_mutex_release(&rotate_lock);
 
   return ret_val;
 }

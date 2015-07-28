@@ -196,7 +196,14 @@ public:
     // XXX FIXME
     // return m_file_format != LOG_FILE_PIPE ? m_bytes_written : 0;
     return 0;
-  };
+  }
+
+  bool
+  is_init()
+  {
+    return m_is_init;
+  }
+
 
   static void log_log(LogLogPriorityLevel priority, const char *format, ...);
 
@@ -224,6 +231,7 @@ private:
   bool m_is_regfile;
   uint64_t m_signature;
   bool m_is_bootstrap;
+  bool m_is_init;
   BaseMetaInfo *m_meta_info;
 };
 #endif
