@@ -149,12 +149,15 @@ public:
   Diags(const char *base_debug_tags, const char *base_action_tags, BaseLogFile *_diags_log);
   ~Diags();
 
-  BaseLogFile *diags_log;
+  BaseLogFile *diags_log;  
   BaseLogFile *stdout_log;
   BaseLogFile *stderr_log;
+
+  // callbacks for when each BaseLogFile is rotatied
   void (*diags_log_cb)(void *);
   void (*stdout_log_cb)(void *);
   void (*stderr_log_cb)(void *);
+
   const unsigned int magic;
   volatile DiagsConfigState config;
   int show_location;
@@ -255,7 +258,8 @@ public:
 
 private:
   mutable ink_mutex tag_table_lock; // prevents reconfig/read races
-  mutable ink_mutex rotate_lock;
+  mutable ink_mutex rotate_lock;    // prevents rotation races
+  mutable ink_mutex output_lock;
   DFA *activated_tags[2]; // 1 table for debug, 1 for action
   int rollcounter;
   void setup_diagslog(BaseLogFile *blf);

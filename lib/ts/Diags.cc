@@ -111,6 +111,7 @@ Diags::Diags(const char *bdt, const char *bat, BaseLogFile *_diags_log)
   cleanup_func = NULL;
   ink_mutex_init(&tag_table_lock, "Diags::tag_table_lock");
   ink_mutex_init(&rotate_lock, "Diags::rotate_lock");
+  ink_mutex_init(&output_lock, "Diags::output_lock");
 
   ////////////////////////////////////////////////////////
   // initialize the default, base debugging/action tags //
@@ -322,6 +323,7 @@ Diags::print_va(const char *debug_tag, DiagsLevel diags_level, const SrcLoc *loc
   }
 
   if (config.outputs[diags_level].to_stdout) {
+    ink_mutex_acquire(&output_lock);
     if (stdout_log && stdout_log->m_fp) {
       va_list ap_scratch;
       va_copy(ap_scratch, ap);
@@ -334,9 +336,11 @@ Diags::print_va(const char *debug_tag, DiagsLevel diags_level, const SrcLoc *loc
         }
       }
     }
+    ink_mutex_release(&output_lock);
   }
 
   if (config.outputs[diags_level].to_stderr) {
+    ink_mutex_acquire(&output_lock);
     if (stderr_log && stderr_log->m_fp) {
       va_list ap_scratch;
       va_copy(ap_scratch, ap);
@@ -349,6 +353,7 @@ Diags::print_va(const char *debug_tag, DiagsLevel diags_level, const SrcLoc *loc
         }
       }
     }
+    ink_mutex_release(&output_lock);
   }
 
 #if !defined(freebsd)
@@ -646,12 +651,17 @@ Diags::should_roll_logs()
   if (!stdout_log || !stdout_log->is_init())
     return false;
 
+  ink_mutex_acquire(&output_lock);
+
   struct stat buf;
   fstat(fileno(stdout_log->m_fp), &buf);
   int size = buf.st_size;
   if (size >= 100 * 1024) {
+    fflush(stdout_log->m_fp);
+    fflush(stderr_log->m_fp);
     if (stdout_log->roll()) {
       const char *oldname = ats_strdup(stdout_log->get_name());
+      log_log_trace("in should_roll_logs(), oldname=%s\n",oldname);
       set_stdout_output(oldname);
 
       // if stderr and stdout are redirected to the same place, we should
@@ -660,13 +670,17 @@ Diags::should_roll_logs()
         set_stderr_output(oldname);
       }
 
-      // run stdout_log callback function
-      if (stdout_log_cb)
+      // run stdout_log rotation callback function
+      if (stdout_log_cb) {
+        log_log_trace("Calling stdout_log_cb()\n");
         stdout_log_cb(NULL);
+        log_log_trace("Called stdout_log_cb()\n");
+      }
 
       ret_val = true;
     }
   }
+  ink_mutex_release(&output_lock);
 
   // Roll stderr_log if necessary
   // XXX TODO

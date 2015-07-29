@@ -58,10 +58,12 @@ BaseLogFile::~BaseLogFile()
 
   if (m_is_regfile)
     close_file();
+  else
+    log_log_trace("not a regular file, not closing, m_name=%s, this=%p\n", m_name, this);
   if (m_name)
     ats_free(m_name);
 
-  log_log_trace("exiting BaseLogFile destructor, this=%p\n", m_name, this);
+  log_log_trace("exiting BaseLogFile destructor, this=%p\n", this);
 }
 
 /*

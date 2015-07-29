@@ -98,6 +98,7 @@ static void SignalAlrmHandler(int sig);
 #endif
 
 static volatile int sigHupNotifier = 0;
+static volatile int sigUsr1Notifier = 0;
 static void SigChldHandler(int sig);
 
 static bool
@@ -203,6 +204,7 @@ initSignalHandlers()
   //  to check errno for EINTR
   sigHandler.sa_flags = SA_RESTART;
   sigaction(SIGHUP, &sigHandler, NULL);
+  sigaction(SIGUSR1, &sigHandler, NULL);
   sigaction(SIGUSR2, &sigHandler, NULL);
 
 // Don't block the signal on entry to the signal
@@ -243,6 +245,7 @@ initSignalHandlers()
   //
   sigfillset(&sigsToBlock);
   sigdelset(&sigsToBlock, SIGHUP);
+  sigdelset(&sigsToBlock, SIGUSR1);
   sigdelset(&sigsToBlock, SIGUSR2);
   sigdelset(&sigsToBlock, SIGINT);
   sigdelset(&sigsToBlock, SIGQUIT);
@@ -381,7 +384,6 @@ millisleep(int ms)
 int
 main(int argc, const char **argv)
 {
-  printf("woo in mngr main!\n");
   const long MAX_LOGIN = ink_login_name_max();
 
   // Before accessing file system initialize Layout engine
@@ -700,6 +702,18 @@ main(int argc, const char **argv)
       mgmt_log(stderr, "[main] Reading Configuration Files Reread\n");
     }
 
+    // Check for a SIGUSR1 (means stdout_log and stderr_log in Diags needs to be reloaded).
+    // Note that this flag doesn't specify whether it was stdout or stderr that needs 
+    // reloading. Note that also it shouldn't matter, since at worst the reloading
+    // would do nothing besides delete and recreate the same BaseLogFile.
+    if (sigUsr1Notifier != 0) {
+      mgmt_log(stderr,"[main] Reloading BaseLogFiles in TM Diags\n");
+      diags->set_stdout_output(bind_stdout);
+      diags->set_stderr_output(bind_stderr);
+      sigUsr1Notifier = 0;
+      mgmt_log(stderr,"[main] Reloading BaseLogFiles in TM Diags reloaded\n");
+    }
+
     lmgmt->ccom->generateClusterDelta();
 
     if (lmgmt->run_proxy && lmgmt->processRunning()) {
@@ -860,6 +874,11 @@ SignalHandler(int sig)
 
   if (sig == SIGHUP) {
     sigHupNotifier = 1;
+    return;
+  }
+
+  if (sig == SIGUSR1) {
+    sigUsr1Notifier = 1;
     return;
   }
 

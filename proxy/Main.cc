@@ -124,6 +124,10 @@ static void *mgmt_restart_shutdown_callback(void *, char *, int data_len);
 static void *mgmt_storage_device_cmd_callback(void *x, char *data, int len);
 static void init_ssl_ctx_callback(void *ctx, bool server);
 
+// XXX rename these to be more descriptive
+static void stdout_log_callback(void *);
+static void stderr_log_callback(void *);
+
 static int num_of_net_threads = ink_number_of_processors();
 static int num_of_udp_threads = 0;
 static int num_accept_threads = 0;
@@ -1441,7 +1445,8 @@ main(int /* argc ATS_UNUSED */, const char **argv)
   command_valid = command_flag && command_index >= 0;
 
   // Bind stdout and stderr to specified switches
-  // XXX possibly unneeded with Diags now binding stdout and stderr??
+  // Still needed despite the set_std{err,out}_output() calls later since there are
+  // fprintf's before those calls
   bind_outputs(bind_stdout, bind_stderr);
 
   // Specific validity checks.
@@ -1472,6 +1477,8 @@ main(int /* argc ATS_UNUSED */, const char **argv)
   diags->prefix_str = "Server ";
   diags->set_stdout_output(bind_stdout);
   diags->set_stderr_output(bind_stderr);
+  diags->stdout_log_cb = stdout_log_callback;
+  diags->stderr_log_cb = stderr_log_callback;
   if (is_debug_tag_set("diags"))
     diags->dump();
 
@@ -1554,6 +1561,8 @@ main(int /* argc ATS_UNUSED */, const char **argv)
   diags->prefix_str = "Server ";
   diags->set_stdout_output(bind_stdout);
   diags->set_stderr_output(bind_stderr);
+  diags->stdout_log_cb = stdout_log_callback;
+  diags->stderr_log_cb = stderr_log_callback;
   if (is_debug_tag_set("diags"))
     diags->dump();
 
@@ -1911,5 +1920,29 @@ init_ssl_ctx_callback(void *ctx, bool server)
   while (hook) {
     hook->invoke(event, ctx);
     hook = hook->next();
+  }
+}
+
+static void 
+stdout_log_callback(void *)
+{
+  ElevateAccess e(true);
+  int ppid = getppid();
+  // XXX don't use BaseLogFile's log_log_trace
+  log_log_trace("Sending SIGUSR1 to TM (pid=%d) from %s\n",ppid,__FUNCTION__);
+  if (kill(ppid,SIGUSR1) != 0) {
+    log_log_trace("Could not send SIGUSR1 to TM: %s\n",strerror(errno));
+  }
+}
+
+static void 
+stderr_log_callback(void *)
+{
+  ElevateAccess e(true);
+  int ppid = getppid();
+  // XXX don't use BaseLogFile's log_log_trace
+  log_log_trace("Sending SIGUSR1 to TM (pid=%d) from %s\n",ppid,__FUNCTION__);
+  if (kill(ppid,SIGUSR1) != 0) {
+    log_log_trace("Could not send SIGUSR1 to TM: %s\n",strerror(errno));
   }
 }
