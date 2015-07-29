@@ -259,7 +259,6 @@ public:
 private:
   mutable ink_mutex tag_table_lock; // prevents reconfig/read races
   mutable ink_mutex rotate_lock;    // prevents rotation races
-  mutable ink_mutex output_lock;
   DFA *activated_tags[2]; // 1 table for debug, 1 for action
   int rollcounter;
   void setup_diagslog(BaseLogFile *blf);

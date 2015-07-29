@@ -111,7 +111,6 @@ Diags::Diags(const char *bdt, const char *bat, BaseLogFile *_diags_log)
   cleanup_func = NULL;
   ink_mutex_init(&tag_table_lock, "Diags::tag_table_lock");
   ink_mutex_init(&rotate_lock, "Diags::rotate_lock");
-  ink_mutex_init(&output_lock, "Diags::output_lock");
 
   ////////////////////////////////////////////////////////
   // initialize the default, base debugging/action tags //
@@ -323,7 +322,6 @@ Diags::print_va(const char *debug_tag, DiagsLevel diags_level, const SrcLoc *loc
   }
 
   if (config.outputs[diags_level].to_stdout) {
-    ink_mutex_acquire(&output_lock);
     if (stdout_log && stdout_log->m_fp) {
       va_list ap_scratch;
       va_copy(ap_scratch, ap);
@@ -336,11 +334,9 @@ Diags::print_va(const char *debug_tag, DiagsLevel diags_level, const SrcLoc *loc
         }
       }
     }
-    ink_mutex_release(&output_lock);
   }
 
   if (config.outputs[diags_level].to_stderr) {
-    ink_mutex_acquire(&output_lock);
     if (stderr_log && stderr_log->m_fp) {
       va_list ap_scratch;
       va_copy(ap_scratch, ap);
@@ -353,7 +349,6 @@ Diags::print_va(const char *debug_tag, DiagsLevel diags_level, const SrcLoc *loc
         }
       }
     }
-    ink_mutex_release(&output_lock);
   }
 
 #if !defined(freebsd)
@@ -648,10 +643,10 @@ Diags::should_roll_logs()
   */
 
   // Roll stdout_log if necessary
-  if (!stdout_log || !stdout_log->is_init())
-    return false;
-
-  ink_mutex_acquire(&output_lock);
+  if (!stdout_log || !stdout_log->is_init()) {
+    ink_mutex_release(&rotate_lock);
+    return ret_val;
+  }
 
   struct stat buf;
   fstat(fileno(stdout_log->m_fp), &buf);
@@ -680,14 +675,14 @@ Diags::should_roll_logs()
       ret_val = true;
     }
   }
-  ink_mutex_release(&output_lock);
 
   // Roll stderr_log if necessary
   // XXX TODO
 
 
-  if (lockval == 0)
-    ink_mutex_release(&rotate_lock);
+  // rotate_lock has to be locked at this point, since otherwise the function
+  // would have already returned
+  ink_mutex_release(&rotate_lock);
 
   return ret_val;
 }
