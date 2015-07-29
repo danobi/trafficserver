@@ -656,12 +656,13 @@ Diags::should_roll_logs()
     fflush(stderr_log->m_fp);
     if (stdout_log->roll()) {
       const char *oldname = ats_strdup(stdout_log->get_name());
-      log_log_trace("in should_roll_logs(), oldname=%s\n",oldname);
+      log_log_trace("in should_roll_logs(), oldname=%s\n", oldname);
       set_stdout_output(oldname);
 
       // if stderr and stdout are redirected to the same place, we should
       // update the stderr_log object as well
       if (!strcmp(oldname, stderr_log->get_name())) {
+        log_log_trace("oldname == stderr_log->get_name()\n");
         set_stderr_output(oldname);
       }
 

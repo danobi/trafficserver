@@ -460,6 +460,9 @@ main(int argc, const char **argv)
   diags = diagsConfig->diags;
   diags->set_stdout_output(bind_stdout);
   diags->set_stderr_output(bind_stderr);
+  // TODO remove: this is only here while TS can't sent SIGUSR1 to TM
+  diags->stdout_log = NULL;
+  diags->stderr_log = NULL;
   diags->prefix_str = "Manager ";
 
   RecLocalInit();
@@ -508,6 +511,9 @@ main(int argc, const char **argv)
   diags->prefix_str = "Manager ";
   diags->set_stdout_output(bind_stdout);
   diags->set_stderr_output(bind_stderr);
+  // TODO remove: this is only here while TS can't sent SIGUSR1 to TM
+  diags->stdout_log = NULL;
+  diags->stderr_log = NULL;
 
   if (is_debug_tag_set("diags"))
     diags->dump();
@@ -703,15 +709,15 @@ main(int argc, const char **argv)
     }
 
     // Check for a SIGUSR1 (means stdout_log and stderr_log in Diags needs to be reloaded).
-    // Note that this flag doesn't specify whether it was stdout or stderr that needs 
+    // Note that this flag doesn't specify whether it was stdout or stderr that needs
     // reloading. Note that also it shouldn't matter, since at worst the reloading
     // would do nothing besides delete and recreate the same BaseLogFile.
     if (sigUsr1Notifier != 0) {
-      mgmt_log(stderr,"[main] Reloading BaseLogFiles in TM Diags\n");
+      mgmt_log(stderr, "[main] Reloading BaseLogFiles in TM Diags\n");
       diags->set_stdout_output(bind_stdout);
       diags->set_stderr_output(bind_stderr);
       sigUsr1Notifier = 0;
-      mgmt_log(stderr,"[main] Reloading BaseLogFiles in TM Diags reloaded\n");
+      mgmt_log(stderr, "[main] Reloading BaseLogFiles in TM Diags reloaded\n");
     }
 
     lmgmt->ccom->generateClusterDelta();

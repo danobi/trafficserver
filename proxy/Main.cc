@@ -1923,26 +1923,26 @@ init_ssl_ctx_callback(void *ctx, bool server)
   }
 }
 
-static void 
+static void
 stdout_log_callback(void *)
 {
   ElevateAccess e(true);
   int ppid = getppid();
   // XXX don't use BaseLogFile's log_log_trace
-  log_log_trace("Sending SIGUSR1 to TM (pid=%d) from %s\n",ppid,__FUNCTION__);
-  if (kill(ppid,SIGUSR1) != 0) {
-    log_log_trace("Could not send SIGUSR1 to TM: %s\n",strerror(errno));
+  log_log_trace("Sending SIGUSR1 to TM (pid=%d) from %s\n", ppid, __FUNCTION__);
+  if (kill(ppid, SIGUSR1) != 0) {
+    log_log_trace("Could not send SIGUSR1 to TM: %s\n", strerror(errno));
   }
 }
 
-static void 
+static void
 stderr_log_callback(void *)
 {
   ElevateAccess e(true);
   int ppid = getppid();
   // XXX don't use BaseLogFile's log_log_trace
-  log_log_trace("Sending SIGUSR1 to TM (pid=%d) from %s\n",ppid,__FUNCTION__);
-  if (kill(ppid,SIGUSR1) != 0) {
-    log_log_trace("Could not send SIGUSR1 to TM: %s\n",strerror(errno));
+  log_log_trace("Sending SIGUSR1 to TM (pid=%d) from %s\n", ppid, __FUNCTION__);
+  if (kill(ppid, SIGUSR1) != 0) {
+    log_log_trace("Could not send SIGUSR1 to TM: %s\n", strerror(errno));
   }
 }
