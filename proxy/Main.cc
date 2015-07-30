@@ -125,8 +125,8 @@ static void *mgmt_storage_device_cmd_callback(void *x, char *data, int len);
 static void init_ssl_ctx_callback(void *ctx, bool server);
 
 // XXX rename these to be more descriptive
-static void stdout_log_callback(void *);
-static void stderr_log_callback(void *);
+void stdout_log_callback(void *);
+void stderr_log_callback(void *);
 
 static int num_of_net_threads = ink_number_of_processors();
 static int num_of_udp_threads = 0;
@@ -1923,23 +1923,25 @@ init_ssl_ctx_callback(void *ctx, bool server)
   }
 }
 
-static void
+void
 stdout_log_callback(void *)
 {
   ElevateAccess e(true);
-  int ppid = getppid();
+  pid_t ppid = getppid();
   // XXX don't use BaseLogFile's log_log_trace
   log_log_trace("Sending SIGUSR1 to TM (pid=%d) from %s\n", ppid, __FUNCTION__);
+  log_log_trace("Currrent euid=%d\n",geteuid());
+  log_log_trace("Currrent uid=%d\n",getuid());
   if (kill(ppid, SIGUSR1) != 0) {
     log_log_trace("Could not send SIGUSR1 to TM: %s\n", strerror(errno));
   }
 }
 
-static void
+void
 stderr_log_callback(void *)
 {
   ElevateAccess e(true);
-  int ppid = getppid();
+  pid_t ppid = getppid();
   // XXX don't use BaseLogFile's log_log_trace
   log_log_trace("Sending SIGUSR1 to TM (pid=%d) from %s\n", ppid, __FUNCTION__);
   if (kill(ppid, SIGUSR1) != 0) {

@@ -697,6 +697,9 @@ main(int argc, const char **argv)
   int sleep_time = 0; // sleep_time given in sec
 
   for (;;) {
+    mgmt_log("[TrafficManager] euid=%d\n",geteuid());
+    mgmt_log("[TrafficManager] uid=%d\n",getuid());
+
     lmgmt->processEventQueue();
     lmgmt->pollMgmtProcessServer();
 
@@ -713,6 +716,7 @@ main(int argc, const char **argv)
     // reloading. Note that also it shouldn't matter, since at worst the reloading
     // would do nothing besides delete and recreate the same BaseLogFile.
     if (sigUsr1Notifier != 0) {
+      mgmt_log("[TrafficManager] caught the goddamn signal\n");
       mgmt_log(stderr, "[main] Reloading BaseLogFiles in TM Diags\n");
       diags->set_stdout_output(bind_stdout);
       diags->set_stderr_output(bind_stderr);
