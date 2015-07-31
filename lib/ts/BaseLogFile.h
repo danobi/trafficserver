@@ -168,6 +168,7 @@ class BaseLogFile
 public:
   // member functions
   BaseLogFile(const char *name, bool is_bootstrap);
+  BaseLogFile(const char *name, bool is_bootstrap, uint64_t sig);
   BaseLogFile(const BaseLogFile &);
   ~BaseLogFile();
   int roll();
@@ -229,6 +230,7 @@ private:
   // member variables
   char *m_name;
   bool m_is_regfile;
+  bool m_has_signature; // XXX find better way than have this flag
   uint64_t m_signature;
   bool m_is_bootstrap;
   bool m_is_init;

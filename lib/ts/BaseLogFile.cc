@@ -35,6 +35,25 @@ BaseLogFile::BaseLogFile(const char *name, bool is_bootstrap)
   m_end_time = 0L;
   m_bytes_written = 0;
   m_meta_info = NULL;
+  m_has_signature = false;
+
+  log_log_trace("exiting BaseLogFile constructor, m_name=%s, this=%p\n", m_name, this);
+}
+
+/*
+ * This consturctor creates a BaseLogFile based on a given name.
+ * Similar to above constructor, but is overloaded with the object signature
+ */
+BaseLogFile::BaseLogFile(const char *name, bool is_bootstrap, uint64_t sig)
+  : m_name(ats_strdup(name)), m_is_regfile(false), m_is_bootstrap(is_bootstrap), m_is_init(false)
+{
+  m_fp = NULL;
+  m_start_time = time(0);
+  m_end_time = 0L;
+  m_bytes_written = 0;
+  m_meta_info = NULL;
+  m_signature = sig;
+  m_has_signature = true;
 
   log_log_trace("exiting BaseLogFile constructor, m_name=%s, this=%p\n", m_name, this);
 }
@@ -44,7 +63,8 @@ BaseLogFile::BaseLogFile(const char *name, bool is_bootstrap)
  */
 BaseLogFile::BaseLogFile(const BaseLogFile &copy)
   : m_fp(NULL), m_start_time(copy.m_start_time), m_end_time(0L), m_bytes_written(0), m_name(ats_strdup(copy.m_name)),
-    m_is_regfile(false), m_is_bootstrap(copy.m_is_bootstrap), m_meta_info(NULL), m_is_init(copy.m_is_init)
+    m_is_regfile(false), m_is_bootstrap(copy.m_is_bootstrap), m_meta_info(NULL), m_is_init(copy.m_is_init),
+    m_signature(copy.m_signature), m_has_signature(copy.m_has_signature)
 {
   log_log_trace("exiting BaseLogFile copy constructor, m_name=%s, this=%p\n", m_name, this);
 }
@@ -287,7 +307,10 @@ BaseLogFile::open_file()
   } else {
     // The log file does not exist, so we create a new MetaInfo object
     //  which will save itself to disk right away (in the constructor)
-    m_meta_info = new BaseMetaInfo(m_name, (long)time(0) /*, m_signature*/);
+    if (m_has_signature)
+      m_meta_info = new BaseMetaInfo(m_name, (long)time(0), m_signature);
+    else
+      m_meta_info = new BaseMetaInfo(m_name, (long)time(0));
   }
 
   // open actual log file (not metainfo)

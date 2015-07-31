@@ -697,8 +697,8 @@ main(int argc, const char **argv)
   int sleep_time = 0; // sleep_time given in sec
 
   for (;;) {
-    mgmt_log("[TrafficManager] euid=%d\n",geteuid());
-    mgmt_log("[TrafficManager] uid=%d\n",getuid());
+    mgmt_log("[TrafficManager] euid=%d\n", geteuid());
+    mgmt_log("[TrafficManager] uid=%d\n", getuid());
 
     lmgmt->processEventQueue();
     lmgmt->pollMgmtProcessServer();

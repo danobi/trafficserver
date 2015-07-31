@@ -1930,8 +1930,8 @@ stdout_log_callback(void *)
   pid_t ppid = getppid();
   // XXX don't use BaseLogFile's log_log_trace
   log_log_trace("Sending SIGUSR1 to TM (pid=%d) from %s\n", ppid, __FUNCTION__);
-  log_log_trace("Currrent euid=%d\n",geteuid());
-  log_log_trace("Currrent uid=%d\n",getuid());
+  log_log_trace("Currrent euid=%d\n", geteuid());
+  log_log_trace("Currrent uid=%d\n", getuid());
   if (kill(ppid, SIGUSR1) != 0) {
     log_log_trace("Could not send SIGUSR1 to TM: %s\n", strerror(errno));
   }
