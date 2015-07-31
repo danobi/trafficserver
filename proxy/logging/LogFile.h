@@ -106,6 +106,7 @@ public:
   bool is_open();
   void close_file();
   void check_fd();
+  int get_fd();
   static int writeln(char *data, int len, int fd, const char *path);
 
 public:

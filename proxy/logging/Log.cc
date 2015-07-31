@@ -1223,7 +1223,7 @@ Log::flush_thread_main(void * /* args ATS_UNUSED */)
           break;
         }
 
-        len = ::write(logfile->m_fd, &buf[bytes_written], total_bytes - bytes_written);
+        len = ::write(logfile->get_fd(), &buf[bytes_written], total_bytes - bytes_written);
         if (len < 0) {
           Error("Failed to write log to %s: [tried %d, wrote %d, %s]", logfile->get_name(), total_bytes - bytes_written,
                 bytes_written, strerror(errno));
@@ -1232,6 +1232,7 @@ Log::flush_thread_main(void * /* args ATS_UNUSED */)
                          total_bytes - bytes_written);
           break;
         }
+        Debug("log","Successfully wrote some stuff to %s",logfile->get_name());
         bytes_written += len;
       }
 

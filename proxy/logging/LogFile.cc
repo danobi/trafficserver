@@ -63,7 +63,7 @@
 
 LogFile::LogFile(const char *name, const char *header, LogFileFormat format, uint64_t signature, size_t ascii_buffer_size,
                  size_t max_line_size)
-  : m_file_format(format), m_header(ats_strdup(header)), m_signature(signature), m_max_line_size(max_line_size)
+  : m_file_format(format), m_name(ats_strdup(name)), m_header(ats_strdup(header)), m_signature(signature), m_max_line_size(max_line_size)
 {
   if (m_file_format != LOG_FILE_PIPE) {
     m_log = new BaseLogFile(name, false, m_signature);
@@ -87,7 +87,7 @@ LogFile::LogFile(const char *name, const char *header, LogFileFormat format, uin
   -------------------------------------------------------------------------*/
 
 LogFile::LogFile(const LogFile &copy)
-  : m_file_format(copy.m_file_format), m_header(ats_strdup(copy.m_header)), m_signature(copy.m_signature),
+  : m_file_format(copy.m_file_format), m_name(ats_strdup(copy.m_name)), m_header(ats_strdup(copy.m_header)), m_signature(copy.m_signature),
     m_ascii_buffer_size(copy.m_ascii_buffer_size), m_max_line_size(copy.m_max_line_size), m_start_time(0L), m_end_time(0L),
     m_fd(copy.m_fd)
 {
@@ -208,6 +208,7 @@ LogFile::open_file()
 
   RecIncrRawStat(log_rsb, this_thread()->mutex->thread_holding, log_stat_log_files_open_stat, 1);
 
+  Debug("log","exiting LogFile::open_file(), file=%s presumably open",m_name);
   return LOG_FILE_NO_ERROR;
 }
 
@@ -596,6 +597,24 @@ LogFile::is_open()
     return (m_fd >= 0);
   else
     return (m_log && m_log->is_open());
+}
+
+/*
+ * Returns the fd of the entity (pipe or regular file ) that this object is
+ * representing
+ *
+ * Returns -1 on error, the correct fd otherwise
+ */
+int
+LogFile::get_fd()
+{
+  if (m_file_format == LOG_FILE_PIPE) {
+    return m_fd;
+  } else if (m_log && m_log->m_fp) {
+    return fileno(m_log->m_fp);
+  } else {
+    return -1;
+  }
 }
 
 /***************************************************************************
