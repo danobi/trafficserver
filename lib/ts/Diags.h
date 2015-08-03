@@ -311,6 +311,7 @@ dummy_debug(const char *tag, const char *fmt, ...)
 #define Note(...)                            \
   do {                                       \
     diags->error(DTA(DL_Note), __VA_ARGS__); \
+    diags->should_roll_logs();               \
   } while (0)
 #define Warning(...) diags->error(DTA(DL_Warning), __VA_ARGS__)
 #define Error(...) diags->error(DTA(DL_Error), __VA_ARGS__)

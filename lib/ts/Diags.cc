@@ -585,13 +585,16 @@ void
 Diags::setup_diagslog(BaseLogFile *blf)
 {
   diags_log = blf;
+  if (!diags_log)
+    return;
 
   // get file stream from BaseLogFile filedes
-  if (blf && blf->open_file() == BaseLogFile::LOG_FILE_NO_ERROR) {
+  if (blf->open_file() == BaseLogFile::LOG_FILE_NO_ERROR) {
     if (blf->m_fp) {
       int status;
       status = setvbuf(blf->m_fp, NULL, _IOLBF, 512);
       if (status != 0) {
+        log_log_error("Could not setvbuf() for %s\n", blf->get_name());
         blf->close_file();
         delete blf;
         diags_log = NULL;
@@ -600,6 +603,7 @@ Diags::setup_diagslog(BaseLogFile *blf)
       log_log_error("Could not open diags log file: %s\n", strerror(errno));
     }
   }
+  log_log_trace("Exiting setup_diagslog, name=%s, this=%p\n", blf->get_name(), this);
 }
 
 /*
@@ -623,63 +627,109 @@ bool
 Diags::should_roll_logs()
 {
   bool ret_val = false;
+  bool need_consider_stderr = true;
+
+  // We need the lock b/c 2 or more threads rotating these logs
+  // at once creates some interesting issues
+  //
+  // trylock and quit on failure to lock because it's extremely unlikely
+  // that we'll need to rotate by the time we acquire
   int lockval = ink_mutex_try_acquire(&rotate_lock);
   if (lockval != 0)
     return ret_val;
 
-  /*
   // Roll diags_log if necessary
   // XXX use actual config values to roll
-  if (++rollcounter == 50) {
-    if (diags_log->roll()) {
-      const char *oldname = ats_strdup(diags_log->get_name());
-      delete diags_log;
-      setup_diagslog(new BaseLogFile(oldname, false));
-      rollcounter = 0;
-      diags_log_cb(NULL);
-      ret_val = true;
+  if (diags_log && diags_log->is_init()) {
+    struct stat buf;
+    fstat(fileno(diags_log->m_fp), &buf);
+    int size = buf.st_size;
+    if (size >= 10 * 1024) {
+      fflush(diags_log->m_fp);
+      if (diags_log->roll()) {
+        const char *oldname = ats_strdup(diags_log->get_name());
+        log_log_trace("in should_roll_logs() for diags.log, oldname=%s\n", oldname);
+        delete diags_log;
+        setup_diagslog(new BaseLogFile(oldname, false));
+
+        // run diags_log rotation callback function
+        if (diags_log_cb) {
+          log_log_trace("calling diags_log_cb\n", oldname);
+          diags_log_cb(NULL);
+        }
+
+        ret_val = true;
+      }
     }
   }
-  */
 
   // Roll stdout_log if necessary
-  if (!stdout_log || !stdout_log->is_init()) {
-    ink_mutex_release(&rotate_lock);
-    return ret_val;
-  }
+  // XXX use actual config values to roll
+  if (stdout_log && stdout_log->is_init()) {
+    struct stat buf;
+    fstat(fileno(stdout_log->m_fp), &buf);
+    int size = buf.st_size;
+    if (size >= 100 * 1024) {
+      // since usually stdout and stderr are the same file on disk, we should just
+      // play it safe and just flush both BaseLogFiles
+      fflush(stdout_log->m_fp);
+      fflush(stderr_log->m_fp);
+      if (stdout_log->roll()) {
+        const char *oldname = ats_strdup(stdout_log->get_name());
+        log_log_trace("in should_roll_logs(), oldname=%s\n", oldname);
+        set_stdout_output(oldname);
 
-  struct stat buf;
-  fstat(fileno(stdout_log->m_fp), &buf);
-  int size = buf.st_size;
-  if (size >= 100 * 1024) {
-    fflush(stdout_log->m_fp);
-    fflush(stderr_log->m_fp);
-    if (stdout_log->roll()) {
-      const char *oldname = ats_strdup(stdout_log->get_name());
-      log_log_trace("in should_roll_logs(), oldname=%s\n", oldname);
-      set_stdout_output(oldname);
+        // if stderr and stdout are redirected to the same place, we should
+        // update the stderr_log object as well
+        if (!strcmp(oldname, stderr_log->get_name())) {
+          log_log_trace("oldname == stderr_log->get_name()\n");
+          set_stderr_output(oldname);
+          need_consider_stderr = false;
+        }
 
-      // if stderr and stdout are redirected to the same place, we should
-      // update the stderr_log object as well
-      if (!strcmp(oldname, stderr_log->get_name())) {
-        log_log_trace("oldname == stderr_log->get_name()\n");
-        set_stderr_output(oldname);
+        // run stdout_log rotation callback function
+        if (stdout_log_cb) {
+          log_log_trace("Calling stdout_log_cb()\n");
+          stdout_log_cb(NULL);
+          log_log_trace("Called stdout_log_cb()\n");
+        }
+
+        ret_val = true;
       }
-
-      // run stdout_log rotation callback function
-      if (stdout_log_cb) {
-        log_log_trace("Calling stdout_log_cb()\n");
-        stdout_log_cb(NULL);
-        log_log_trace("Called stdout_log_cb()\n");
-      }
-
-      ret_val = true;
     }
   }
 
   // Roll stderr_log if necessary
-  // XXX TODO
+  // XXX use actual config values to roll
+  if (stderr_log && stderr_log->is_init()) {
+    struct stat buf;
+    fstat(fileno(stderr_log->m_fp), &buf);
+    int size = buf.st_size;
+    if (size >= 100 * 1024) {
+      // since usually stdout and stderr are the same file on disk, we should just
+      // play it safe and just flush both BaseLogFiles
+      fflush(stdout_log->m_fp);
+      fflush(stderr_log->m_fp);
+      if (stderr_log->roll()) {
+        const char *oldname = ats_strdup(stderr_log->get_name());
+        log_log_trace("in should_roll_logs(), oldname=%s\n", oldname);
+        set_stdout_output(oldname);
 
+        // Note, we don't even check to see if stdout and stderr are the same
+        // file here, since the above if-block would have handled this case
+        // already
+
+        // run stderr_log rotation callback function
+        if (stderr_log_cb) {
+          log_log_trace("Calling stderr_log_cb()\n");
+          stderr_log_cb(NULL);
+          log_log_trace("Called stderr_log_cb()\n");
+        }
+
+        ret_val = true;
+      }
+    }
+  }
 
   // rotate_lock has to be locked at this point, since otherwise the function
   // would have already returned
