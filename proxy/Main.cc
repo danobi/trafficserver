@@ -171,6 +171,7 @@ static int cmd_line_dprintf_level = 0; // default debug output level from ink_dp
 static int poll_timeout = -1;          // No value set.
 
 static volatile bool sigusr1_received = false;
+static volatile bool sigusr2_received = false;
 
 // 1: delay listen, wait for cache.
 // 0: Do not delay, start listen ASAP.
@@ -256,6 +257,10 @@ public:
       fastmemsnap += fmdelta;
 #endif
       snap = now;
+    } else if (sigusr2_received) {
+      // reload output logfile (file is usually called traffic.out)
+      // XXX implement the rest of this
+      fprintf(stdout, "received traffic.out reload signal!\n");
     }
 
     return EVENT_CONT;
@@ -335,6 +340,9 @@ proxy_signal_handler(int signo, siginfo_t *info, void *)
   switch (signo) {
   case SIGUSR1:
     sigusr1_received = true;
+    return;
+  case SIGUSR2:
+    sigusr2_received = true;
     return;
   case SIGHUP:
     return;

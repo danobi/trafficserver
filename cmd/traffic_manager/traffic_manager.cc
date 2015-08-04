@@ -59,6 +59,8 @@
 #define FD_THROTTLE_HEADROOM (128 + 64) // TODO: consolidate with THROTTLE_FD_HEADROOM
 #define DIAGS_LOG_FILENAME "manager.log"
 
+enum RollingEnabledValues { NO_ROLLING = 0, ROLL_ON_TIME, ROLL_ON_SIZE, INVALID_ROLLING_VALUE };
+
 // These globals are still referenced directly by management API.
 LocalManager *lmgmt = NULL;
 FileManager *configFiles;
@@ -80,6 +82,11 @@ static bool proxy_off = false;
 static char bind_stdout[512] = "";
 static char bind_stderr[512] = "";
 
+// traffic.out rotation variables
+static RollingEnabledValues rolling_enabled = RollingEnabledValues::NO_ROLLING;
+static int output_log_rolling_interval = 3600; // more commonly known as traffic.out
+static int output_log_rolling_size = 1;
+
 static const char *mgmt_path = NULL;
 
 // By default, set the current directory as base
@@ -100,6 +107,44 @@ static void SignalAlrmHandler(int sig);
 static volatile int sigHupNotifier = 0;
 static volatile int sigUsr1Notifier = 0;
 static void SigChldHandler(int sig);
+
+static void
+rotateLogs()
+{
+  MgmtInt roll_int = REC_ConfigReadInteger("proxy.config.output.logfile.rolling_interval_sec");
+  MgmtInt roll_size = REC_ConfigReadInteger("proxy.config.output.logfile.rolling_size_mb");
+  MgmtInt roll_enable = REC_ConfigReadInteger("proxy.config.output.logfile.rolling_enabled");
+  if (roll_int > 0) {
+    output_log_rolling_interval = (int)roll_int;
+  } else {
+    Error("proxy.config.output.logfile.rolling_interval_sec = %" PRId64 " is invalid", roll_int);
+    Note("Output logfile rolling interval is unchanged, staying at interval=%d seconds", output_log_rolling_interval);
+  }
+  if (roll_size > 0) {
+    output_log_rolling_size = (int)roll_size;
+  } else {
+    Error("proxy.config.output.logfile.rolling_size_mb = %" PRId64 " is invalid", roll_size);
+    Note("Output logfile rolling size is unchanged, staying at size=%d mb", output_log_rolling_size);
+  }
+  if (roll_enable >= 0) {
+    int re = (int)roll_enable;
+    rolling_enabled = (RollingEnabledValues)re;
+  } else {
+    Error("proxy.config.output.logfile.rolling_enabled = %" PRId64 " is invalid", roll_enable);
+    Note("Output logfile rolling enabled unchanged, staying at value=%d", rolling_enabled);
+  }
+  mgmt_log("[Traffic Manager] listen up, roll_int = %d, roll_size = %d, roll_enable = %d", output_log_rolling_interval,
+           output_log_rolling_size, rolling_enabled);
+  // send a signal to TS to reload traffic.out
+  mgmt_log("Sending SIGUSR1 to TS");
+  /*
+  if (kill(lmgmt->proxy_launch_pid,SIGUSR2) != 0) {
+    mgmt_log("Could not send SIGUSR2 to TS: %s",strerror(errno));
+  } else {
+    mgmt_log("Succesfully sent SIGUSR2 to TS!");
+  }
+  */
+}
 
 static bool
 is_server_idle()
@@ -697,11 +742,14 @@ main(int argc, const char **argv)
   int sleep_time = 0; // sleep_time given in sec
 
   for (;;) {
-    mgmt_log("[TrafficManager] euid=%d\n", geteuid());
-    mgmt_log("[TrafficManager] uid=%d\n", getuid());
+    // mgmt_log("[TrafficManager] euid=%d\n", geteuid());
+    // mgmt_log("[TrafficManager] uid=%d\n", getuid());
 
     lmgmt->processEventQueue();
     lmgmt->pollMgmtProcessServer();
+
+    // Handle rotation of output log (aka traffic.out)
+    rotateLogs();
 
     // Check for a SIGHUP
     if (sigHupNotifier != 0) {
