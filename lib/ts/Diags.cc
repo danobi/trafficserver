@@ -672,8 +672,10 @@ Diags::should_roll_logs()
     if (size >= 100 * 1024) {
       // since usually stdout and stderr are the same file on disk, we should just
       // play it safe and just flush both BaseLogFiles
+      if (stderr_log && stderr_log->m_fp) {
+        fflush(stderr_log->m_fp);
+      }
       fflush(stdout_log->m_fp);
-      fflush(stderr_log->m_fp);
       if (stdout_log->roll()) {
         const char *oldname = ats_strdup(stdout_log->get_name());
         log_log_trace("in should_roll_logs(), oldname=%s\n", oldname);
@@ -708,7 +710,9 @@ Diags::should_roll_logs()
     if (size >= 100 * 1024) {
       // since usually stdout and stderr are the same file on disk, we should just
       // play it safe and just flush both BaseLogFiles
-      fflush(stdout_log->m_fp);
+      if (stdout_log && stdout_log->m_fp) {
+        fflush(stdout_log->m_fp);
+      }
       fflush(stderr_log->m_fp);
       if (stderr_log->roll()) {
         const char *oldname = ats_strdup(stderr_log->get_name());
