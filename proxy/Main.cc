@@ -258,6 +258,7 @@ public:
 #endif
       snap = now;
     } else if (sigusr2_received) {
+      sigusr2_received = false;
       // reload output logfile (file is usually called traffic.out)
       // XXX implement the rest of this
       fprintf(stdout, "received traffic.out reload signal!\n");
