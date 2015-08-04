@@ -1232,7 +1232,7 @@ Log::flush_thread_main(void * /* args ATS_UNUSED */)
                          total_bytes - bytes_written);
           break;
         }
-        Debug("log","Successfully wrote some stuff to %s",logfile->get_name());
+        Debug("log", "Successfully wrote some stuff to %s", logfile->get_name());
         bytes_written += len;
       }
 
