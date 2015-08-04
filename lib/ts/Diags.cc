@@ -672,7 +672,7 @@ Diags::should_roll_logs()
     if (size >= 100 * 1024) {
       // since usually stdout and stderr are the same file on disk, we should just
       // play it safe and just flush both BaseLogFiles
-      if (stderr_log && stderr_log->m_fp) {
+      if (stderr_log && stderr_log->is_init()) {
         fflush(stderr_log->m_fp);
       }
       fflush(stdout_log->m_fp);
@@ -703,14 +703,14 @@ Diags::should_roll_logs()
 
   // Roll stderr_log if necessary
   // XXX use actual config values to roll
-  if (stderr_log && stderr_log->is_init()) {
+  if (need_consider_stderr && stderr_log && stderr_log->is_init()) {
     struct stat buf;
     fstat(fileno(stderr_log->m_fp), &buf);
     int size = buf.st_size;
     if (size >= 100 * 1024) {
       // since usually stdout and stderr are the same file on disk, we should just
       // play it safe and just flush both BaseLogFiles
-      if (stdout_log && stdout_log->m_fp) {
+      if (stdout_log && stdout_log->is_init()) {
         fflush(stdout_log->m_fp);
       }
       fflush(stderr_log->m_fp);
