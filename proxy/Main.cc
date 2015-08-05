@@ -259,9 +259,10 @@ public:
       snap = now;
     } else if (sigusr2_received) {
       sigusr2_received = false;
+      Debug("log", "received traffic.out reload signal!\n");
       // reload output logfile (file is usually called traffic.out)
-      // XXX implement the rest of this
-      fprintf(stdout, "received traffic.out reload signal!\n");
+      diags->set_stdout_output(bind_stdout);
+      diags->set_stderr_output(bind_stderr);
     }
 
     return EVENT_CONT;
@@ -1486,8 +1487,6 @@ main(int /* argc ATS_UNUSED */, const char **argv)
   diags->prefix_str = "Server ";
   diags->set_stdout_output(bind_stdout);
   diags->set_stderr_output(bind_stderr);
-  diags->stdout_log_cb = stdout_log_callback;
-  diags->stderr_log_cb = stderr_log_callback;
   if (is_debug_tag_set("diags"))
     diags->dump();
 
@@ -1570,8 +1569,6 @@ main(int /* argc ATS_UNUSED */, const char **argv)
   diags->prefix_str = "Server ";
   diags->set_stdout_output(bind_stdout);
   diags->set_stderr_output(bind_stderr);
-  diags->stdout_log_cb = stdout_log_callback;
-  diags->stderr_log_cb = stderr_log_callback;
   if (is_debug_tag_set("diags"))
     diags->dump();
 
@@ -1929,31 +1926,5 @@ init_ssl_ctx_callback(void *ctx, bool server)
   while (hook) {
     hook->invoke(event, ctx);
     hook = hook->next();
-  }
-}
-
-void
-stdout_log_callback(void *)
-{
-  ElevateAccess e(true);
-  pid_t ppid = getppid();
-  // XXX don't use BaseLogFile's log_log_trace
-  log_log_trace("Sending SIGUSR1 to TM (pid=%d) from %s\n", ppid, __FUNCTION__);
-  log_log_trace("Currrent euid=%d\n", geteuid());
-  log_log_trace("Currrent uid=%d\n", getuid());
-  if (kill(ppid, SIGUSR1) != 0) {
-    log_log_trace("Could not send SIGUSR1 to TM: %s\n", strerror(errno));
-  }
-}
-
-void
-stderr_log_callback(void *)
-{
-  ElevateAccess e(true);
-  pid_t ppid = getppid();
-  // XXX don't use BaseLogFile's log_log_trace
-  log_log_trace("Sending SIGUSR1 to TM (pid=%d) from %s\n", ppid, __FUNCTION__);
-  if (kill(ppid, SIGUSR1) != 0) {
-    log_log_trace("Could not send SIGUSR1 to TM: %s\n", strerror(errno));
   }
 }

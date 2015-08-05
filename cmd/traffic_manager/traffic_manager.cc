@@ -59,7 +59,6 @@
 #define FD_THROTTLE_HEADROOM (128 + 64) // TODO: consolidate with THROTTLE_FD_HEADROOM
 #define DIAGS_LOG_FILENAME "manager.log"
 
-enum RollingEnabledValues { NO_ROLLING = 0, ROLL_ON_TIME, ROLL_ON_SIZE, INVALID_ROLLING_VALUE };
 
 // These globals are still referenced directly by management API.
 LocalManager *lmgmt = NULL;
@@ -82,11 +81,6 @@ static bool proxy_off = false;
 static char bind_stdout[512] = "";
 static char bind_stderr[512] = "";
 
-// traffic.out rotation variables
-static RollingEnabledValues rolling_enabled = RollingEnabledValues::NO_ROLLING;
-static int output_log_rolling_interval = 3600; // more commonly known as traffic.out
-static int output_log_rolling_size = 1;
-
 static const char *mgmt_path = NULL;
 
 // By default, set the current directory as base
@@ -105,45 +99,27 @@ static void SignalAlrmHandler(int sig);
 #endif
 
 static volatile int sigHupNotifier = 0;
-static volatile int sigUsr1Notifier = 0;
 static void SigChldHandler(int sig);
 
 static void
 rotateLogs()
 {
-  MgmtInt roll_int = REC_ConfigReadInteger("proxy.config.output.logfile.rolling_interval_sec");
-  MgmtInt roll_size = REC_ConfigReadInteger("proxy.config.output.logfile.rolling_size_mb");
-  MgmtInt roll_enable = REC_ConfigReadInteger("proxy.config.output.logfile.rolling_enabled");
-  if (roll_int > 0) {
-    output_log_rolling_interval = (int)roll_int;
-  } else {
-    Error("proxy.config.output.logfile.rolling_interval_sec = %" PRId64 " is invalid", roll_int);
-    Note("Output logfile rolling interval is unchanged, staying at interval=%d seconds", output_log_rolling_interval);
+  if (diags->should_roll_diagslog()) {
+    mgmt_log("Rotated %s", DIAGS_LOG_FILENAME);
   }
-  if (roll_size > 0) {
-    output_log_rolling_size = (int)roll_size;
-  } else {
-    Error("proxy.config.output.logfile.rolling_size_mb = %" PRId64 " is invalid", roll_size);
-    Note("Output logfile rolling size is unchanged, staying at size=%d mb", output_log_rolling_size);
+
+  if (diags->should_roll_outputlog()) {
+    // send a signal to TS to reload traffic.out, so the logfile is kept
+    // synced across processes
+    mgmt_log("Sending SIGUSR2 to TS");
+    pid_t tspid = lmgmt->watched_process_pid;
+    if (tspid <= 0)
+      return;
+    if (kill(tspid, SIGUSR2) != 0)
+      mgmt_log("Could not send SIGUSR2 to TS: %s", strerror(errno));
+    else
+      mgmt_log("Succesfully sent SIGUSR2 to TS!");
   }
-  if (roll_enable >= 0) {
-    int re = (int)roll_enable;
-    rolling_enabled = (RollingEnabledValues)re;
-  } else {
-    Error("proxy.config.output.logfile.rolling_enabled = %" PRId64 " is invalid", roll_enable);
-    Note("Output logfile rolling enabled unchanged, staying at value=%d", rolling_enabled);
-  }
-  mgmt_log("[Traffic Manager] listen up, roll_int = %d, roll_size = %d, roll_enable = %d", output_log_rolling_interval,
-           output_log_rolling_size, rolling_enabled);
-  // send a signal to TS to reload traffic.out
-  mgmt_log("Sending SIGUSR1 to TS");
-  /*
-  if (kill(lmgmt->proxy_launch_pid,SIGUSR2) != 0) {
-    mgmt_log("Could not send SIGUSR2 to TS: %s",strerror(errno));
-  } else {
-    mgmt_log("Succesfully sent SIGUSR2 to TS!");
-  }
-  */
 }
 
 static bool
@@ -249,7 +225,6 @@ initSignalHandlers()
   //  to check errno for EINTR
   sigHandler.sa_flags = SA_RESTART;
   sigaction(SIGHUP, &sigHandler, NULL);
-  sigaction(SIGUSR1, &sigHandler, NULL);
   sigaction(SIGUSR2, &sigHandler, NULL);
 
 // Don't block the signal on entry to the signal
@@ -290,7 +265,6 @@ initSignalHandlers()
   //
   sigfillset(&sigsToBlock);
   sigdelset(&sigsToBlock, SIGHUP);
-  sigdelset(&sigsToBlock, SIGUSR1);
   sigdelset(&sigsToBlock, SIGUSR2);
   sigdelset(&sigsToBlock, SIGINT);
   sigdelset(&sigsToBlock, SIGQUIT);
@@ -505,9 +479,6 @@ main(int argc, const char **argv)
   diags = diagsConfig->diags;
   diags->set_stdout_output(bind_stdout);
   diags->set_stderr_output(bind_stderr);
-  // TODO remove: this is only here while TS can't sent SIGUSR1 to TM
-  diags->stdout_log = NULL;
-  diags->stderr_log = NULL;
   diags->prefix_str = "Manager ";
 
   RecLocalInit();
@@ -556,9 +527,6 @@ main(int argc, const char **argv)
   diags->prefix_str = "Manager ";
   diags->set_stdout_output(bind_stdout);
   diags->set_stderr_output(bind_stderr);
-  // TODO remove: this is only here while TS can't sent SIGUSR1 to TM
-  diags->stdout_log = NULL;
-  diags->stderr_log = NULL;
 
   if (is_debug_tag_set("diags"))
     diags->dump();
@@ -759,19 +727,6 @@ main(int argc, const char **argv)
       mgmt_log(stderr, "[main] Reading Configuration Files Reread\n");
     }
 
-    // Check for a SIGUSR1 (means stdout_log and stderr_log in Diags needs to be reloaded).
-    // Note that this flag doesn't specify whether it was stdout or stderr that needs
-    // reloading. Note that also it shouldn't matter, since at worst the reloading
-    // would do nothing besides delete and recreate the same BaseLogFile.
-    if (sigUsr1Notifier != 0) {
-      mgmt_log("[TrafficManager] caught the goddamn signal\n");
-      mgmt_log(stderr, "[main] Reloading BaseLogFiles in TM Diags\n");
-      diags->set_stdout_output(bind_stdout);
-      diags->set_stderr_output(bind_stderr);
-      sigUsr1Notifier = 0;
-      mgmt_log(stderr, "[main] Reloading BaseLogFiles in TM Diags reloaded\n");
-    }
-
     lmgmt->ccom->generateClusterDelta();
 
     if (lmgmt->run_proxy && lmgmt->processRunning()) {
@@ -932,11 +887,6 @@ SignalHandler(int sig)
 
   if (sig == SIGHUP) {
     sigHupNotifier = 1;
-    return;
-  }
-
-  if (sig == SIGUSR1) {
-    sigUsr1Notifier = 1;
     return;
   }
 

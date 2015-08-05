@@ -102,9 +102,7 @@ SrcLoc::str(char *buf, int buflen) const
 //////////////////////////////////////////////////////////////////////////////
 
 Diags::Diags(const char *bdt, const char *bat, BaseLogFile *_diags_log)
-  : magic(DIAGS_MAGIC), show_location(0), base_debug_tags(NULL), base_action_tags(NULL), stdout_log(NULL), stderr_log(NULL),
-    diags_log_cb(NULL), stdout_log_cb(NULL), stderr_log_cb(NULL), rollcounter(0)
-
+  : magic(DIAGS_MAGIC), show_location(0), base_debug_tags(NULL), base_action_tags(NULL), stdout_log(NULL), stderr_log(NULL)
 {
   int i;
 
@@ -150,6 +148,16 @@ Diags::Diags(const char *bdt, const char *bat, BaseLogFile *_diags_log)
   activated_tags[DiagsTagType_Debug] = NULL;
   activated_tags[DiagsTagType_Action] = NULL;
   prefix_str = "";
+
+  outputlog_rolling_enabled = RollingEnabledValues::NO_ROLLING;
+  outputlog_rolling_interval = -1;
+  outputlog_rolling_size = -1;
+  diagslog_rolling_enabled = RollingEnabledValues::NO_ROLLING;
+  diagslog_rolling_interval = -1;
+  diagslog_rolling_size = -1;
+
+  outputlog_time_last_roll = time(0);
+  diagslog_time_last_roll = time(0);
 }
 
 Diags::~Diags()
@@ -606,138 +614,176 @@ Diags::setup_diagslog(BaseLogFile *blf)
   log_log_trace("Exiting setup_diagslog, name=%s, this=%p\n", blf->get_name(), this);
 }
 
+void
+Diags::config_roll_diagslog(RollingEnabledValues re, int ri, int rs)
+{
+  diagslog_rolling_enabled = re;
+  diagslog_rolling_interval = ri;
+  diagslog_rolling_size = rs;
+}
+
+void
+Diags::config_roll_outputlog(RollingEnabledValues re, int ri, int rs)
+{
+  outputlog_rolling_enabled = re;
+  outputlog_rolling_interval = ri;
+  outputlog_rolling_size = rs;
+}
+
 /*
- * Checks diags_log, stdout_log, and stderr_log if their underlying files on disk
- * need to be rolled, and does so if necessary. The callback associated with each
- * BaseLogFile is then called. This was done so as to separate policy from
- * mechanism while still allowing a signal to be sent from TS to TM to indicate
- * that logs have been rolled.
+ * Checks diags_log 's underlying file on disk and see if it needs to be rolled,
+ * and does so if necessary.
  *
- * This function will replace the current BaseLogFile object with a
- * new one (if we choose to roll), as each BaseLogFile object logically
- * represents one file on disk
+ * This function will replace the current BaseLogFile object with a new one
+ * (if we choose to roll), as each BaseLogFile object logically represents one
+ * file on disk.
  *
- * This function will also call lock() to prevent race conditions. Note that,
- * however, cross process race conditions may still exist, and further work with
- * flock() for fcntl() may still need to be done.
+ * Note that, however, cross process race conditions may still exist, especially with
+ * the metafile, and further work with flock() for fcntl() may still need to be done.
  *
  * Returns true if any logs rolled, false otherwise
  */
 bool
-Diags::should_roll_logs()
+Diags::should_roll_diagslog()
+{
+  bool ret_val = false;
+
+  // log_log_trace("should_roll_diagslog() was called!\n");
+
+  // Roll diags_log if necessary
+  if (diags_log && diags_log->is_init()) {
+    if (diagslog_rolling_enabled == RollingEnabledValues::ROLL_ON_SIZE) {
+      struct stat buf;
+      fstat(fileno(diags_log->m_fp), &buf);
+      int size = buf.st_size;
+      if (diagslog_rolling_size != -1 && size >= (diagslog_rolling_size * BYTES_IN_MB)) {
+        fflush(diags_log->m_fp);
+        if (diags_log->roll()) {
+          char *oldname = ats_strdup(diags_log->get_name());
+          log_log_trace("in should_roll_logs() for diags.log, oldname=%s\n", oldname);
+          delete diags_log;
+          setup_diagslog(new BaseLogFile(oldname, false));
+          ats_free(oldname);
+          ret_val = true;
+        }
+      }
+    } else if (diagslog_rolling_enabled == RollingEnabledValues::ROLL_ON_TIME) {
+      time_t now = time(0);
+      if (diagslog_rolling_interval != -1 && (now - diagslog_time_last_roll) >= diagslog_rolling_interval) {
+        fflush(diags_log->m_fp);
+        if (diags_log->roll()) {
+          diagslog_time_last_roll = now;
+          char *oldname = ats_strdup(diags_log->get_name());
+          log_log_trace("in should_roll_logs() for diags.log, oldname=%s\n", oldname);
+          delete diags_log;
+          setup_diagslog(new BaseLogFile(oldname, false));
+          ats_free(oldname);
+          ret_val = true;
+        }
+      }
+    }
+  }
+
+  return ret_val;
+}
+
+/*
+ * Checks stdout_log and stderr_log if their underlying files on disk need to be
+ * rolled, and does so if necessary.
+ *
+ * This function will replace the current BaseLogFile objects with a
+ * new one (if we choose to roll), as each BaseLogFile object logically
+ * represents one file on disk
+ *
+ * Note that, however, cross process race conditions may still exist, especially with
+ * the metafile, and further work with flock() for fcntl() may still need to be done.
+ *
+ * Returns true if any logs rolled, false otherwise
+ */
+bool
+Diags::should_roll_outputlog()
 {
   bool ret_val = false;
   bool need_consider_stderr = true;
 
-  // We need the lock b/c 2 or more threads rotating these logs
-  // at once creates some interesting issues
-  //
-  // trylock and quit on failure to lock because it's extremely unlikely
-  // that we'll need to rotate by the time we acquire
-  int lockval = ink_mutex_try_acquire(&rotate_lock);
-  if (lockval != 0)
-    return ret_val;
-
-  // Roll diags_log if necessary
-  // XXX use actual config values to roll
-  if (diags_log && diags_log->is_init()) {
-    struct stat buf;
-    fstat(fileno(diags_log->m_fp), &buf);
-    int size = buf.st_size;
-    if (size >= 10 * 1024) {
-      fflush(diags_log->m_fp);
-      if (diags_log->roll()) {
-        const char *oldname = ats_strdup(diags_log->get_name());
-        log_log_trace("in should_roll_logs() for diags.log, oldname=%s\n", oldname);
-        delete diags_log;
-        setup_diagslog(new BaseLogFile(oldname, false));
-
-        // run diags_log rotation callback function
-        if (diags_log_cb) {
-          log_log_trace("calling diags_log_cb\n", oldname);
-          diags_log_cb(NULL);
-        }
-
-        ret_val = true;
-      }
-    }
-  }
+  log_log_trace("should_roll_outputlog() was called!\n");
+  log_log_trace("rolling_enabled = %d, output_rolling_size = %d, output_rolling_interval = %d\n", outputlog_rolling_enabled,
+                outputlog_rolling_size, outputlog_rolling_interval);
+  log_log_trace("RollingEnabledValues::ROLL_ON_TIME = %d\n", RollingEnabledValues::ROLL_ON_TIME);
+  log_log_trace("time(0) - last_roll_time = %d\n", time(0) - outputlog_time_last_roll);
+  log_log_trace("stdout_log = %p\n", stdout_log);
 
   // Roll stdout_log if necessary
-  // XXX use actual config values to roll
   if (stdout_log && stdout_log->is_init()) {
-    struct stat buf;
-    fstat(fileno(stdout_log->m_fp), &buf);
-    int size = buf.st_size;
-    if (size >= 100 * 1024) {
-      // since usually stdout and stderr are the same file on disk, we should just
-      // play it safe and just flush both BaseLogFiles
-      if (stderr_log && stderr_log->is_init()) {
-        fflush(stderr_log->m_fp);
-      }
-      fflush(stdout_log->m_fp);
-      if (stdout_log->roll()) {
-        const char *oldname = ats_strdup(stdout_log->get_name());
-        log_log_trace("in should_roll_logs(), oldname=%s\n", oldname);
-        set_stdout_output(oldname);
-
-        // if stderr and stdout are redirected to the same place, we should
-        // update the stderr_log object as well
-        if (!strcmp(oldname, stderr_log->get_name())) {
-          log_log_trace("oldname == stderr_log->get_name()\n");
-          set_stderr_output(oldname);
-          need_consider_stderr = false;
-        }
-
-        // run stdout_log rotation callback function
-        if (stdout_log_cb) {
-          log_log_trace("Calling stdout_log_cb()\n");
-          stdout_log_cb(NULL);
-          log_log_trace("Called stdout_log_cb()\n");
-        }
-
-        ret_val = true;
-      }
-    }
-  }
-
-  // Roll stderr_log if necessary
-  // XXX use actual config values to roll
-  if (need_consider_stderr && stderr_log && stderr_log->is_init()) {
-    struct stat buf;
-    fstat(fileno(stderr_log->m_fp), &buf);
-    int size = buf.st_size;
-    if (size >= 100 * 1024) {
-      // since usually stdout and stderr are the same file on disk, we should just
-      // play it safe and just flush both BaseLogFiles
-      if (stdout_log && stdout_log->is_init()) {
+    log_log_trace("got into stdout_log && stdout_log->is_init()\n");
+    if (outputlog_rolling_enabled == RollingEnabledValues::ROLL_ON_SIZE) {
+      struct stat buf;
+      fstat(fileno(stdout_log->m_fp), &buf);
+      int size = buf.st_size;
+      if (outputlog_rolling_size != -1 && size >= outputlog_rolling_size * BYTES_IN_MB) {
+        // since usually stdout and stderr are the same file on disk, we should just
+        // play it safe and just flush both BaseLogFiles
+        if (stderr_log && stderr_log->is_init())
+          fflush(stderr_log->m_fp);
         fflush(stdout_log->m_fp);
-      }
-      fflush(stderr_log->m_fp);
-      if (stderr_log->roll()) {
-        const char *oldname = ats_strdup(stderr_log->get_name());
-        log_log_trace("in should_roll_logs(), oldname=%s\n", oldname);
-        set_stdout_output(oldname);
 
-        // Note, we don't even check to see if stdout and stderr are the same
-        // file here, since the above if-block would have handled this case
-        // already
+        if (stdout_log->roll()) {
+          char *oldname = ats_strdup(stdout_log->get_name());
+          log_log_trace("in should_roll_logs(), oldname=%s\n", oldname);
+          set_stdout_output(oldname);
 
-        // run stderr_log rotation callback function
-        if (stderr_log_cb) {
-          log_log_trace("Calling stderr_log_cb()\n");
-          stderr_log_cb(NULL);
-          log_log_trace("Called stderr_log_cb()\n");
+          // if stderr and stdout are redirected to the same place, we should
+          // update the stderr_log object as well
+          if (!strcmp(oldname, stderr_log->get_name())) {
+            log_log_trace("oldname == stderr_log->get_name()\n");
+            set_stderr_output(oldname);
+            need_consider_stderr = false;
+          }
+          ats_free(oldname);
+          ret_val = true;
         }
+      }
+    } else if (outputlog_rolling_enabled == RollingEnabledValues::ROLL_ON_TIME) {
+      log_log_trace("got into roll on time!\n");
+      time_t now = time(0);
+      if (outputlog_rolling_interval != -1 && (now - outputlog_time_last_roll) >= outputlog_rolling_interval) {
+        // since usually stdout and stderr are the same file on disk, we should just
+        // play it safe and just flush both BaseLogFiles
+        if (stderr_log && stderr_log->is_init())
+          fflush(stderr_log->m_fp);
+        fflush(stdout_log->m_fp);
 
-        ret_val = true;
+        if (stdout_log->roll()) {
+          outputlog_time_last_roll = now;
+          char *oldname = ats_strdup(stdout_log->get_name());
+          log_log_trace("in should_roll_logs(), oldname=%s\n", oldname);
+          set_stdout_output(oldname);
+
+          // if stderr and stdout are redirected to the same place, we should
+          // update the stderr_log object as well
+          if (!strcmp(oldname, stderr_log->get_name())) {
+            log_log_trace("oldname == stderr_log->get_name()\n");
+            set_stderr_output(oldname);
+            need_consider_stderr = false;
+          }
+          ats_free(oldname);
+          ret_val = true;
+        }
       }
     }
   }
 
-  // rotate_lock has to be locked at this point, since otherwise the function
-  // would have already returned
-  ink_mutex_release(&rotate_lock);
+  // This assertion has to be true since log rolling for traffic.out is only ever enabled
+  // (and useful) when traffic_server is NOT running in stand alone mode. If traffic_server
+  // is NOT running in stand alone mode, then stderr and stdout SHOULD ALWAYS be pointing
+  // to the same file (traffic.out).
+  //
+  // If for some reason, someone wants the feature to have stdout pointing to some file on
+  // disk, and stderr pointing to a different file on disk, and then also wants both files to
+  // rotate according to the (same || different) scheme, it would not be difficult to add
+  // some more config options in records.config and said feature into this function.
+  if (ret_val)
+    ink_assert(!need_consider_stderr);
 
   return ret_val;
 }
