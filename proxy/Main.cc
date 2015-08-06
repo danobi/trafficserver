@@ -259,7 +259,7 @@ public:
       snap = now;
     } else if (sigusr2_received) {
       sigusr2_received = false;
-      Debug("log", "received traffic.out reload signal!\n");
+      Debug("log", "received SIGUSR2, reloading traffic.outl\n");
       // reload output logfile (file is usually called traffic.out)
       diags->set_stdout_output(bind_stdout);
       diags->set_stderr_output(bind_stderr);
@@ -305,6 +305,37 @@ public:
       ink_freelists_snap_baseline();
       // TODO: TS-567 Integrate with debugging allocators "dump" features?
       baseline_taken = 1;
+    }
+    return EVENT_CONT;
+  }
+};
+
+// This continuation is used to periodically check on diags.log, and rotate
+// the logs if necessary
+class DiagsLogContinuation : public Continuation
+{
+public:
+  DiagsLogContinuation() : Continuation(new_ProxyMutex()) { SET_HANDLER(&DiagsLogContinuation::periodic); }
+
+  int
+  periodic(int /* event ATS_UNUSED */, Event * /* e ATS_UNUSED */)
+  {
+    Debug("log", "in DiagsLogContinuation, checking on diags.log");
+
+    // First, let us update the rolling config values for diagslog. We
+    // do not need to update the config values for outputlog because
+    // traffic_server never actually rotates outputlog. outputlog is always
+    // rotated in traffic_manager. The reason being is that it is difficult
+    // to send a notification from TS to TM, informing TM that outputlog has
+    // been rolled. It is much easier sending a notification (in the form
+    // of SIGUSR2) from TM -> TS.
+    int diags_log_roll_int = (int)REC_ConfigReadInteger("proxy.config.diags.logfile.rolling_interval_sec");
+    int diags_log_roll_size = (int)REC_ConfigReadInteger("proxy.config.diags.logfile.rolling_size_mb");
+    int diags_log_roll_enable = (int)REC_ConfigReadInteger("proxy.config.diags.logfile.rolling_enabled");
+    diags->config_roll_diagslog((RollingEnabledValues)diags_log_roll_enable, diags_log_roll_int, diags_log_roll_size);
+
+    if (diags->should_roll_diagslog()) {
+      Note("Rolled %s", DIAGS_LOG_FILENAME);
     }
     return EVENT_CONT;
   }
@@ -1696,6 +1727,7 @@ main(int /* argc ATS_UNUSED */, const char **argv)
   }
 
   eventProcessor.schedule_every(new SignalContinuation, HRTIME_MSECOND * 500, ET_CALL);
+  eventProcessor.schedule_every(new DiagsLogContinuation, HRTIME_SECOND, ET_TASK);
   REC_RegisterConfigUpdateFunc("proxy.config.dump_mem_info_frequency", init_memory_tracker, NULL);
   init_memory_tracker(NULL, RECD_NULL, RecData(), NULL);
 

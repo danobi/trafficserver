@@ -125,8 +125,6 @@ public:
   size_t m_max_line_size;     // size of longest log line (record)
 
   int m_fd;
-  long m_start_time;
-  long m_end_time;
   volatile uint64_t m_bytes_written;
 
 public:

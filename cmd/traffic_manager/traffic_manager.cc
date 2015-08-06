@@ -104,6 +104,23 @@ static void SigChldHandler(int sig);
 static void
 rotateLogs()
 {
+  // First, let us synchronously update the rolling config values for both diagslog
+  // and outputlog. Note that the config values for outputlog in traffic_server
+  // are never updated past the original instantiation of Diags. This shouldn't
+  // be an issue since we're never rolling outputlog from traffic_server anyways.
+  // The reason being is that it is difficult to send a notification from TS to
+  // TM, informing TM that outputlog has been rolled. It is much easier sending
+  // a notification (in the form of SIGUSR2) from TM -> TS.
+  int output_log_roll_int = (int)REC_ConfigReadInteger("proxy.config.output.logfile.rolling_interval_sec");
+  int output_log_roll_size = (int)REC_ConfigReadInteger("proxy.config.output.logfile.rolling_size_mb");
+  int output_log_roll_enable = (int)REC_ConfigReadInteger("proxy.config.output.logfile.rolling_enabled");
+  int diags_log_roll_int = (int)REC_ConfigReadInteger("proxy.config.diags.logfile.rolling_interval_sec");
+  int diags_log_roll_size = (int)REC_ConfigReadInteger("proxy.config.diags.logfile.rolling_size_mb");
+  int diags_log_roll_enable = (int)REC_ConfigReadInteger("proxy.config.diags.logfile.rolling_enabled");
+  diags->config_roll_diagslog((RollingEnabledValues)diags_log_roll_enable, diags_log_roll_int, diags_log_roll_size);
+  diags->config_roll_outputlog((RollingEnabledValues)output_log_roll_enable, output_log_roll_int, output_log_roll_size);
+
+  // Now we can actually roll the logs (if necessary)
   if (diags->should_roll_diagslog()) {
     mgmt_log("Rotated %s", DIAGS_LOG_FILENAME);
   }

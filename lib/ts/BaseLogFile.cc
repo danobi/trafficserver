@@ -27,8 +27,7 @@
  * This consturctor creates a BaseLogFile based on a given name.
  * This is the most common way BaseLogFiles are created.
  */
-BaseLogFile::BaseLogFile(const char *name, bool is_bootstrap)
-  : m_name(ats_strdup(name)), m_is_regfile(false), m_is_bootstrap(is_bootstrap), m_is_init(false)
+BaseLogFile::BaseLogFile(const char *name) : m_name(ats_strdup(name)), m_hostname(NULL), m_is_regfile(false), m_is_init(false)
 {
   m_fp = NULL;
   m_start_time = time(0);
@@ -44,8 +43,8 @@ BaseLogFile::BaseLogFile(const char *name, bool is_bootstrap)
  * This consturctor creates a BaseLogFile based on a given name.
  * Similar to above constructor, but is overloaded with the object signature
  */
-BaseLogFile::BaseLogFile(const char *name, bool is_bootstrap, uint64_t sig)
-  : m_name(ats_strdup(name)), m_is_regfile(false), m_is_bootstrap(is_bootstrap), m_is_init(false)
+BaseLogFile::BaseLogFile(const char *name, uint64_t sig)
+  : m_name(ats_strdup(name)), m_hostname(NULL), m_is_regfile(false), m_is_init(false)
 {
   m_fp = NULL;
   m_start_time = time(0);
@@ -63,7 +62,7 @@ BaseLogFile::BaseLogFile(const char *name, bool is_bootstrap, uint64_t sig)
  */
 BaseLogFile::BaseLogFile(const BaseLogFile &copy)
   : m_fp(NULL), m_start_time(copy.m_start_time), m_end_time(0L), m_bytes_written(0), m_name(ats_strdup(copy.m_name)),
-    m_is_regfile(false), m_is_bootstrap(copy.m_is_bootstrap), m_meta_info(NULL), m_is_init(copy.m_is_init),
+    m_hostname(ats_strdup(m_hostname)), m_is_regfile(false), m_meta_info(NULL), m_is_init(copy.m_is_init),
     m_signature(copy.m_signature), m_has_signature(copy.m_has_signature)
 {
   log_log_trace("exiting BaseLogFile copy constructor, m_name=%s, this=%p\n", m_name, this);
@@ -82,6 +81,8 @@ BaseLogFile::~BaseLogFile()
     log_log_trace("not a regular file, not closing, m_name=%s, this=%p\n", m_name, this);
   if (m_name)
     ats_free(m_name);
+  if (m_hostname)
+    ats_free(m_hostname);
 
   log_log_trace("exiting BaseLogFile destructor, this=%p\n", this);
 }
@@ -108,7 +109,6 @@ BaseLogFile::~BaseLogFile()
  * bound.
 
  * Return 1 if file rolled, 0 otherwise
- *XXX add hostname as an optional parameter
  */
 int
 BaseLogFile::roll(long interval_start, long interval_end)
@@ -157,6 +157,7 @@ BaseLogFile::roll(long interval_start, long interval_end)
     // our starting bounds.  Instead, we'll try to use the file
     // creation time stored in the metafile (if it's valid and we can
     // read it).  If all else fails, we'll use 0 for the start time.
+    log_log_trace("in BaseLogFile::roll(..) used metadata starttime");
     m_meta_info->get_creation_time(&start);
   } else {
     // The logfile was not preexisting (normal case), so we'll use
@@ -169,15 +170,20 @@ BaseLogFile::roll(long interval_start, long interval_end)
     // produce overlapping filenames (the problem is that we have
     // no easy way of keeping track of the timestamp of the first
     // transaction
-    start = (m_start_time < interval_start) ? m_start_time : interval_start;
+    log_log_trace("in BaseLogFile::roll(..) used else math starttime\n");
+    if (interval_start == 0) 
+      start = m_start_time;
+    else 
+      start = (m_start_time < interval_start) ? m_start_time : interval_start;
   }
+  log_log_trace("in BaseLogFile::roll(..), start = %ld, m_start_time = %ld, interval_start = %ld\n",start,m_start_time,interval_start);
 
   // Now that we have our timestamp values, convert them to the proper
   // timestamp formats and create the rolled file name.
   timestamp_to_str((long)start, start_time_ext, 64);
   timestamp_to_str((long)end, end_time_ext, 64);
-  snprintf(roll_name, LOGFILE_ROLL_MAXPATHLEN, "%s%s.%s-%s%s", m_name, LOGFILE_SEPARATOR_STRING, start_time_ext, end_time_ext,
-           LOGFILE_ROLLED_EXTENSION);
+  snprintf(roll_name, LOGFILE_ROLL_MAXPATHLEN, "%s%s%s.%s-%s%s", m_name, (m_hostname ? LOGFILE_SEPARATOR_STRING : ""),
+           (m_hostname ? m_hostname : ""), start_time_ext, end_time_ext, LOGFILE_ROLLED_EXTENSION);
 
   // It may be possible that the file we want to roll into already
   // exists.  If so, then we need to add a version tag to the rolled
@@ -187,8 +193,8 @@ BaseLogFile::roll(long interval_start, long interval_end)
     log_log_trace("The rolled file %s already exists; adding version "
                   "tag %d to avoid clobbering the existing file.\n",
                   roll_name, version);
-    snprintf(roll_name, LOGFILE_ROLL_MAXPATHLEN, "%s%s.%s-%s.%d%s", m_name, LOGFILE_SEPARATOR_STRING, start_time_ext, end_time_ext,
-             version, LOGFILE_ROLLED_EXTENSION);
+    snprintf(roll_name, LOGFILE_ROLL_MAXPATHLEN, "%s%s%s.%s-%s.%d%s", m_name, (m_hostname ? LOGFILE_SEPARATOR_STRING : ""),
+             (m_hostname ? m_hostname : ""), start_time_ext, end_time_ext, version, LOGFILE_ROLLED_EXTENSION);
     version++;
   }
 

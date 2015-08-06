@@ -67,13 +67,12 @@ LogFile::LogFile(const char *name, const char *header, LogFileFormat format, uin
     m_max_line_size(max_line_size)
 {
   if (m_file_format != LOG_FILE_PIPE) {
-    m_log = new BaseLogFile(name, false, m_signature);
+    m_log = new BaseLogFile(name, m_signature);
+    m_log->set_hostname(Machine::instance()->hostname);
   } else {
     m_log = NULL;
   }
 
-  m_start_time = 0L;
-  m_end_time = 0L;
   m_fd = -1;
   m_bytes_written = 0;
   m_ascii_buffer_size = (ascii_buffer_size < max_line_size ? max_line_size : ascii_buffer_size);
@@ -90,7 +89,7 @@ LogFile::LogFile(const char *name, const char *header, LogFileFormat format, uin
 LogFile::LogFile(const LogFile &copy)
   : m_file_format(copy.m_file_format), m_name(ats_strdup(copy.m_name)), m_header(ats_strdup(copy.m_header)),
     m_signature(copy.m_signature), m_ascii_buffer_size(copy.m_ascii_buffer_size), m_max_line_size(copy.m_max_line_size),
-    m_start_time(0L), m_end_time(0L), m_fd(copy.m_fd)
+    m_fd(copy.m_fd)
 {
   ink_release_assert(m_ascii_buffer_size >= m_max_line_size);
 
@@ -289,9 +288,9 @@ LogFile::preproc_and_try_delete(LogBuffer *lb)
   // the low_timestamp from the given LogBuffer.  Then, we always set the
   // end time to the high_timestamp, so it's always up to date.
   //
-  if (!m_start_time)
-    m_start_time = buffer_header->low_timestamp;
-  m_end_time = buffer_header->high_timestamp;
+  if (!m_log->m_start_time)
+    m_log->m_start_time = buffer_header->low_timestamp;
+  m_log->m_end_time = buffer_header->high_timestamp;
 
   if (m_file_format == LOG_FILE_BINARY) {
     //

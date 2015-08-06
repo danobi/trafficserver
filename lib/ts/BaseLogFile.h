@@ -167,8 +167,8 @@ class BaseLogFile
 {
 public:
   // member functions
-  BaseLogFile(const char *name, bool is_bootstrap);
-  BaseLogFile(const char *name, bool is_bootstrap, uint64_t sig);
+  BaseLogFile(const char *name);
+  BaseLogFile(const char *name, uint64_t sig);
   BaseLogFile(const BaseLogFile &);
   ~BaseLogFile();
   int roll();
@@ -184,13 +184,11 @@ public:
   {
     return m_name;
   }
-
   bool
   is_open()
   {
     return (m_fp != NULL);
   }
-
   off_t
   get_size_bytes() const
   {
@@ -198,11 +196,22 @@ public:
     // return m_file_format != LOG_FILE_PIPE ? m_bytes_written : 0;
     return 0;
   }
-
   bool
   is_init()
   {
     return m_is_init;
+  }
+  const char *
+  get_hostname() const
+  {
+    return m_hostname;
+  }
+  void
+  set_hostname(const char *hn)
+  {
+    if (m_hostname)
+      ats_free(m_hostname);
+    m_hostname = ats_strdup(hn);
   }
 
 
@@ -229,10 +238,10 @@ private:
 
   // member variables
   char *m_name;
+  char *m_hostname;
   bool m_is_regfile;
   bool m_has_signature; // XXX find better way than have this flag
   uint64_t m_signature;
-  bool m_is_bootstrap;
   bool m_is_init;
   BaseMetaInfo *m_meta_info;
 };

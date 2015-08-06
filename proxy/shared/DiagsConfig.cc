@@ -308,7 +308,7 @@ DiagsConfig::DiagsConfig(const char *filename, const char *tags, const char *act
   int diags_log_roll_enable = (int)REC_ConfigReadInteger("proxy.config.diags.logfile.rolling_enabled");
 
   // Set up diags, FILE streams are opened in Diags constructor
-  diags_log = new BaseLogFile(diags_logpath, false);
+  diags_log = new BaseLogFile(diags_logpath);
   diags = new Diags(tags, actions, diags_log);
   diags->config_roll_diagslog((RollingEnabledValues)diags_log_roll_enable, diags_log_roll_int, diags_log_roll_size);
   diags->config_roll_outputlog((RollingEnabledValues)output_log_roll_enable, output_log_roll_int, output_log_roll_size);

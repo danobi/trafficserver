@@ -134,8 +134,8 @@ Diags::Diags(const char *bdt, const char *bat, BaseLogFile *_diags_log)
 
   // create default stdout and stderr BaseLogFile objects
   // (in case the user of this class doesn't specify in the future)
-  stdout_log = new BaseLogFile("stdout", true);
-  stderr_log = new BaseLogFile("stderr", true);
+  stdout_log = new BaseLogFile("stdout");
+  stderr_log = new BaseLogFile("stderr");
   stdout_log->open_file(); // should never fail
   stderr_log->open_file(); // should never fail
 
@@ -648,7 +648,11 @@ Diags::should_roll_diagslog()
 {
   bool ret_val = false;
 
-  // log_log_trace("should_roll_diagslog() was called!\n");
+  log_log_trace("should_roll_diagslog() was called\n");
+  log_log_trace("rolling_enabled = %d, output_rolling_size = %d, output_rolling_interval = %d\n", diagslog_rolling_enabled,
+                diagslog_rolling_size, diagslog_rolling_interval);
+  log_log_trace("RollingEnabledValues::ROLL_ON_TIME = %d\n", RollingEnabledValues::ROLL_ON_TIME);
+  log_log_trace("time(0) - last_roll_time = %d\n", time(0) - diagslog_time_last_roll);
 
   // Roll diags_log if necessary
   if (diags_log && diags_log->is_init()) {
@@ -662,7 +666,7 @@ Diags::should_roll_diagslog()
           char *oldname = ats_strdup(diags_log->get_name());
           log_log_trace("in should_roll_logs() for diags.log, oldname=%s\n", oldname);
           delete diags_log;
-          setup_diagslog(new BaseLogFile(oldname, false));
+          setup_diagslog(new BaseLogFile(oldname));
           ats_free(oldname);
           ret_val = true;
         }
@@ -676,7 +680,7 @@ Diags::should_roll_diagslog()
           char *oldname = ats_strdup(diags_log->get_name());
           log_log_trace("in should_roll_logs() for diags.log, oldname=%s\n", oldname);
           delete diags_log;
-          setup_diagslog(new BaseLogFile(oldname, false));
+          setup_diagslog(new BaseLogFile(oldname));
           ats_free(oldname);
           ret_val = true;
         }
@@ -706,16 +710,17 @@ Diags::should_roll_outputlog()
   bool ret_val = false;
   bool need_consider_stderr = true;
 
-  log_log_trace("should_roll_outputlog() was called!\n");
+  /*
+  log_log_trace("should_roll_outputlog() was called\n");
   log_log_trace("rolling_enabled = %d, output_rolling_size = %d, output_rolling_interval = %d\n", outputlog_rolling_enabled,
                 outputlog_rolling_size, outputlog_rolling_interval);
   log_log_trace("RollingEnabledValues::ROLL_ON_TIME = %d\n", RollingEnabledValues::ROLL_ON_TIME);
   log_log_trace("time(0) - last_roll_time = %d\n", time(0) - outputlog_time_last_roll);
   log_log_trace("stdout_log = %p\n", stdout_log);
+  */
 
   // Roll stdout_log if necessary
   if (stdout_log && stdout_log->is_init()) {
-    log_log_trace("got into stdout_log && stdout_log->is_init()\n");
     if (outputlog_rolling_enabled == RollingEnabledValues::ROLL_ON_SIZE) {
       struct stat buf;
       fstat(fileno(stdout_log->m_fp), &buf);
@@ -744,7 +749,6 @@ Diags::should_roll_outputlog()
         }
       }
     } else if (outputlog_rolling_enabled == RollingEnabledValues::ROLL_ON_TIME) {
-      log_log_trace("got into roll on time!\n");
       time_t now = time(0);
       if (outputlog_rolling_interval != -1 && (now - outputlog_time_last_roll) >= outputlog_rolling_interval) {
         // since usually stdout and stderr are the same file on disk, we should just
@@ -812,7 +816,7 @@ Diags::set_stdout_output(const char *_bind_stdout)
   ElevateAccess elevate(true);
 
   // create backing BaseLogFile for stdout
-  stdout_log = new BaseLogFile(_bind_stdout, true /*XXX use real value*/);
+  stdout_log = new BaseLogFile(_bind_stdout);
 
   // on any errors we quit
   if (!stdout_log || stdout_log->open_file() != BaseLogFile::LOG_FILE_NO_ERROR) {
@@ -853,7 +857,7 @@ Diags::set_stderr_output(const char *_bind_stderr)
   ElevateAccess elevate(true);
 
   // create backing BaseLogFile for stdout
-  stderr_log = new BaseLogFile(_bind_stderr, true /*XXX use real value*/);
+  stderr_log = new BaseLogFile(_bind_stderr);
 
   // on any errors we quit
   if (!stderr_log || stderr_log->open_file() != BaseLogFile::LOG_FILE_NO_ERROR) {
