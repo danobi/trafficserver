@@ -85,8 +85,6 @@ public:
 
   static int write_ascii_logbuffer(LogBufferHeader *buffer_header, int fd, const char *path, const char *alt_format = NULL);
   int write_ascii_logbuffer3(LogBufferHeader *buffer_header, const char *alt_format = NULL);
-  // static bool rolled_logfile(char *file);
-  // static bool exists(const char *pathname);
 
   void display(FILE *fd = stdout);
   int open_file();
@@ -124,7 +122,6 @@ public:
   BaseLogFile *m_log; // BaseLogFile backs the actual file on disk
   char *m_header;
   uint64_t m_signature; // signature of log object stored
-  // BaseMetaInfo *m_meta_info;
 
   size_t m_ascii_buffer_size; // size of ascii buffer
   size_t m_max_line_size;     // size of longest log line (record)
