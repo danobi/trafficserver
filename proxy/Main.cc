@@ -1428,7 +1428,7 @@ bind_outputs(const char *_bind_stdout, const char *_bind_stderr)
   ElevateAccess a(true);
   int log_fd;
   if (strcmp(_bind_stdout, "") != 0) {
-    Debug("log", "binding stdout to %s",_bind_stdout);
+    Debug("log", "binding stdout to %s", _bind_stdout);
     log_fd = open(_bind_stdout, O_WRONLY | O_APPEND | O_CREAT, 0644);
     if (log_fd < 0) {
       fprintf(stdout, "[Warning]: TS unable to open log file \"%s\" [%d '%s']\n", _bind_stdout, errno, strerror(errno));
@@ -1439,7 +1439,7 @@ bind_outputs(const char *_bind_stdout, const char *_bind_stderr)
     }
   }
   if (strcmp(_bind_stderr, "") != 0) {
-    Debug("log", "binding stderr to %s",_bind_stderr);
+    Debug("log", "binding stderr to %s", _bind_stderr);
     log_fd = open(_bind_stderr, O_WRONLY | O_APPEND | O_CREAT, 0644);
     if (log_fd < 0) {
       fprintf(stdout, "[Warning]: TS unable to open log file \"%s\" [%d '%s']\n", _bind_stderr, errno, strerror(errno));
