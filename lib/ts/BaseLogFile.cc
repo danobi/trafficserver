@@ -27,14 +27,14 @@
  * This consturctor creates a BaseLogFile based on a given name.
  * This is the most common way BaseLogFiles are created.
  */
-BaseLogFile::BaseLogFile(const char *name) : m_name(ats_strdup(name)), m_hostname(NULL), m_is_regfile(false), m_is_init(false)
+BaseLogFile::BaseLogFile(const char *name)
+  : m_name(ats_strdup(name)), m_hostname(NULL), m_is_regfile(false), m_has_signature(false), m_signature(0), m_is_init(false)
 {
   m_fp = NULL;
   m_start_time = time(0);
   m_end_time = 0L;
   m_bytes_written = 0;
   m_meta_info = NULL;
-  m_has_signature = false;
 
   log_log_trace("exiting BaseLogFile constructor, m_name=%s, this=%p\n", m_name, this);
 }
@@ -44,15 +44,13 @@ BaseLogFile::BaseLogFile(const char *name) : m_name(ats_strdup(name)), m_hostnam
  * Similar to above constructor, but is overloaded with the object signature
  */
 BaseLogFile::BaseLogFile(const char *name, uint64_t sig)
-  : m_name(ats_strdup(name)), m_hostname(NULL), m_is_regfile(false), m_is_init(false)
+  : m_name(ats_strdup(name)), m_hostname(NULL), m_is_regfile(false), m_has_signature(true), m_signature(sig), m_is_init(false)
 {
   m_fp = NULL;
   m_start_time = time(0);
   m_end_time = 0L;
   m_bytes_written = 0;
   m_meta_info = NULL;
-  m_signature = sig;
-  m_has_signature = true;
 
   log_log_trace("exiting BaseLogFile constructor, m_name=%s, this=%p\n", m_name, this);
 }
@@ -62,8 +60,8 @@ BaseLogFile::BaseLogFile(const char *name, uint64_t sig)
  */
 BaseLogFile::BaseLogFile(const BaseLogFile &copy)
   : m_fp(NULL), m_start_time(copy.m_start_time), m_end_time(0L), m_bytes_written(0), m_name(ats_strdup(copy.m_name)),
-    m_hostname(ats_strdup(m_hostname)), m_is_regfile(false), m_meta_info(NULL), m_is_init(copy.m_is_init),
-    m_signature(copy.m_signature), m_has_signature(copy.m_has_signature)
+    m_hostname(ats_strdup(m_hostname)), m_is_regfile(false), m_has_signature(copy.m_has_signature), m_signature(copy.m_signature),
+    m_is_init(copy.m_is_init), m_meta_info(NULL)
 {
   log_log_trace("exiting BaseLogFile copy constructor, m_name=%s, this=%p\n", m_name, this);
 }
@@ -171,12 +169,13 @@ BaseLogFile::roll(long interval_start, long interval_end)
     // no easy way of keeping track of the timestamp of the first
     // transaction
     log_log_trace("in BaseLogFile::roll(..) used else math starttime\n");
-    if (interval_start == 0) 
+    if (interval_start == 0)
       start = m_start_time;
-    else 
+    else
       start = (m_start_time < interval_start) ? m_start_time : interval_start;
   }
-  log_log_trace("in BaseLogFile::roll(..), start = %ld, m_start_time = %ld, interval_start = %ld\n",start,m_start_time,interval_start);
+  log_log_trace("in BaseLogFile::roll(..), start = %ld, m_start_time = %ld, interval_start = %ld\n", start, m_start_time,
+                interval_start);
 
   // Now that we have our timestamp values, convert them to the proper
   // timestamp formats and create the rolled file name.
@@ -274,7 +273,7 @@ BaseLogFile::exists(const char *pathname)
  * Returns relevant exit status
  */
 int
-BaseLogFile::open_file()
+BaseLogFile::open_file(int perm)
 {
   log_log_trace("BaseLogFile: entered open_file()\n");
   if (is_open()) {
@@ -320,13 +319,21 @@ BaseLogFile::open_file()
   }
 
   // open actual log file (not metainfo)
-  // TODO reload perms when possible
   log_log_trace("BaseLogFile: attempting to open %s\n", m_name);
   m_fp = fopen(m_name, "a+");
 
+  // error check
   if (!m_fp) {
     log_log_error("Error opening log file %s: %s\n", m_name, strerror(errno));
+    log_log_error("Actual error: %s\n", (errno == EINVAL ? "einval" : "something else"));
     return LOG_FILE_COULD_NOT_OPEN_FILE;
+  }
+
+  // set permissions if necessary
+  if (perm != -1) {
+    // means LogFile passed in some permissions we need to set
+    if (chmod(m_name, perm) != 0)
+      log_log_error("Error changing logfile=%s permissions: %s\n", m_name, strerror(errno));
   }
 
   // set m_bytes_written to force the rolling based on filesize.
@@ -511,20 +518,7 @@ BaseMetaInfo::_write_to_file()
   // ElevateAccess follows RAII design, the destructor will release root
   ElevateAccess accesss(true);
 
-  // grab log file permissions
-  int perms = 0644;
-  // XXX implement permission resetting when core components come online
-  /*
-  if (!is_bootstrap) {
-    char * ptr = REC_ConfigReadString("proxy.config.log.logfile_perm");
-    int logfile_perm_parsed = ink_fileperm_parse(ptr);
-    if (logfile_perm_parsed != -1)
-      perms = logfile_perm_parsed;
-    ats_free(ptr);
-  }
-  */
-
-  int fd = open(_filename, O_WRONLY | O_CREAT | O_TRUNC, perms);
+  int fd = open(_filename, O_WRONLY | O_CREAT | O_TRUNC, LOGFILE_DEFAULT_PERMS);
   if (fd < 0) {
     log_log_error("Could not open metafile %s for writing: %s\n", _filename, strerror(errno));
     return;

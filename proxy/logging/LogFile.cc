@@ -74,7 +74,6 @@ LogFile::LogFile(const char *name, const char *header, LogFileFormat format, uin
   }
 
   m_fd = -1;
-  m_bytes_written = 0;
   m_ascii_buffer_size = (ascii_buffer_size < max_line_size ? max_line_size : ascii_buffer_size);
 
   Debug("log-file", "exiting LogFile constructor, m_name=%s, this=%p", m_name, this);
@@ -172,12 +171,8 @@ LogFile::open_file()
       return LOG_FILE_NO_PIPE_READERS;
     }
   } else {
-    // XXX figure out how to set logfile permissions
-    // int flags = O_WRONLY | O_APPEND | O_CREAT;
-    // int perms = Log::config->logfile_perm;
-
     if (m_log) {
-      int status = m_log->open_file();
+      int status = m_log->open_file(Log::config->logfile_perm);
       if (status == BaseLogFile::LOG_FILE_COULD_NOT_OPEN_FILE)
         return LOG_FILE_COULD_NOT_OPEN_FILE;
     } else {

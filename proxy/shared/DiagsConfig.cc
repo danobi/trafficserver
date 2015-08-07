@@ -299,7 +299,7 @@ DiagsConfig::DiagsConfig(const char *filename, const char *tags, const char *act
   ink_filepath_make(diags_logpath, sizeof(diags_logpath), logpath, filename);
 
   // Grab rolling intervals from configuration
-  // TODO error check these vales
+  // TODO error check these values
   int output_log_roll_int = (int)REC_ConfigReadInteger("proxy.config.output.logfile.rolling_interval_sec");
   int output_log_roll_size = (int)REC_ConfigReadInteger("proxy.config.output.logfile.rolling_size_mb");
   int output_log_roll_enable = (int)REC_ConfigReadInteger("proxy.config.output.logfile.rolling_enabled");
@@ -312,6 +312,7 @@ DiagsConfig::DiagsConfig(const char *filename, const char *tags, const char *act
   diags = new Diags(tags, actions, diags_log);
   diags->config_roll_diagslog((RollingEnabledValues)diags_log_roll_enable, diags_log_roll_int, diags_log_roll_size);
   diags->config_roll_outputlog((RollingEnabledValues)output_log_roll_enable, output_log_roll_int, output_log_roll_size);
+
   diags->print(NULL, DTA(DL_Status), "opened %s", diags_logpath);
 
   register_diags_callbacks();

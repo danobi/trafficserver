@@ -175,7 +175,7 @@ public:
   int roll(long interval_start, long interval_end);
   static bool rolled_logfile(char *path);
   static bool exists(const char *pathname);
-  int open_file();
+  int open_file(int perm = -1);
   void close_file();
   void change_name(const char *new_name);
   void display(FILE *fd = stdout);
@@ -192,9 +192,7 @@ public:
   off_t
   get_size_bytes() const
   {
-    // XXX FIXME
-    // return m_file_format != LOG_FILE_PIPE ? m_bytes_written : 0;
-    return 0;
+    return m_bytes_written;
   }
   bool
   is_init()
@@ -213,7 +211,6 @@ public:
       ats_free(m_hostname);
     m_hostname = ats_strdup(hn);
   }
-
 
   static void log_log(LogLogPriorityLevel priority, const char *format, ...);
 
@@ -240,7 +237,7 @@ private:
   char *m_name;
   char *m_hostname;
   bool m_is_regfile;
-  bool m_has_signature; // XXX find better way than have this flag
+  bool m_has_signature;
   uint64_t m_signature;
   bool m_is_init;
   BaseMetaInfo *m_meta_info;

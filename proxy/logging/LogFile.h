@@ -94,7 +94,12 @@ public:
   off_t
   get_size_bytes() const
   {
-    return m_file_format != LOG_FILE_PIPE ? m_bytes_written : 0;
+    if (m_file_format == LOG_FILE_PIPE)
+      return 0;
+    else if (m_log)
+      return m_log->get_size_bytes();
+    else
+      return 0;
   };
   int
   do_filesystem_checks()
@@ -124,9 +129,7 @@ public:
   size_t m_ascii_buffer_size; // size of ascii buffer
   size_t m_max_line_size;     // size of longest log line (record)
 
-  int m_fd;
-  volatile uint64_t m_bytes_written;
-
+  int m_fd; // this could back m_log or a pipe, depending on the situation
 public:
   Link<LogFile> link;
 

@@ -1238,7 +1238,8 @@ Log::flush_thread_main(void * /* args ATS_UNUSED */)
 
       RecIncrRawStat(log_rsb, mutex->thread_holding, log_stat_bytes_written_to_disk_stat, bytes_written);
 
-      ink_atomic_increment(&logfile->m_bytes_written, bytes_written);
+      if (logfile->m_log)
+        ink_atomic_increment(&logfile->m_log->m_bytes_written, bytes_written);
 
       delete fdata;
     }
