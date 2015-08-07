@@ -820,20 +820,18 @@ Diags::set_stdout_output(const char *_bind_stdout)
 
   // on any errors we quit
   if (!stdout_log || stdout_log->open_file() != BaseLogFile::LOG_FILE_NO_ERROR) {
-    fprintf(stdout, "[Warning]: unable to open file=%s to bind stdout to\n", _bind_stdout);
+    fprintf(stderr, "[Warning]: unable to open file=%s to bind stdout to\n", _bind_stdout);
     delete stdout_log;
     stdout_log = NULL;
     return false;
   }
   if (!stdout_log->m_fp) {
-    fprintf(stdout, "[Warning]: file pointer for stdout %s = NULL\n", _bind_stdout);
+    fprintf(stderr, "[Warning]: file pointer for stdout %s = NULL\n", _bind_stdout);
     delete stdout_log;
     stdout_log = NULL;
     return false;
   }
 
-  // bind stdout to file
-  fprintf(stdout, "binding stdout to %s!\n", _bind_stdout);
   return rebind_stdout(fileno(stdout_log->m_fp));
 }
 
@@ -861,20 +859,18 @@ Diags::set_stderr_output(const char *_bind_stderr)
 
   // on any errors we quit
   if (!stderr_log || stderr_log->open_file() != BaseLogFile::LOG_FILE_NO_ERROR) {
-    fprintf(stdout, "[Warning]: unable to open file=%s to bind stderr to\n", _bind_stderr);
+    fprintf(stderr, "[Warning]: unable to open file=%s to bind stderr to\n", _bind_stderr);
     delete stderr_log;
     stderr_log = NULL;
     return false;
   }
   if (!stderr_log->m_fp) {
-    fprintf(stdout, "[Warning]: file pointer for stderr %s = NULL\n", _bind_stderr);
+    fprintf(stderr, "[Warning]: file pointer for stderr %s = NULL\n", _bind_stderr);
     delete stderr_log;
     stderr_log = NULL;
     return false;
   }
 
-  // bind stdout to file
-  fprintf(stdout, "binding stderr to %s!\n", _bind_stderr);
   return rebind_stderr(fileno(stderr_log->m_fp));
 }
 
@@ -889,7 +885,6 @@ Diags::rebind_stdout(int new_fd)
   if (new_fd < 0)
     fprintf(stdout, "[Warning]: TS unable to bind stdout to new file descriptor=%d", new_fd);
   else {
-    fprintf(stdout, "duping stdout!\n");
     dup2(new_fd, STDOUT_FILENO);
     return true;
   }
@@ -907,7 +902,6 @@ Diags::rebind_stderr(int new_fd)
   if (new_fd < 0)
     fprintf(stdout, "[Warning]: TS unable to bind stderr to new file descriptor=%d", new_fd);
   else {
-    fprintf(stdout, "duping stderr!\n");
     dup2(new_fd, STDERR_FILENO);
     return true;
   }

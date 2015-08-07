@@ -393,6 +393,7 @@ BaseLogFile::log_log(LogLogPriorityLevel priority, const char *format, ...)
   va_list args;
 
   const char *priority_name = NULL;
+  FILE *output = stdout;
   switch (priority) {
   case LL_Debug:
     priority_name = "DEBUG";
@@ -402,12 +403,15 @@ BaseLogFile::log_log(LogLogPriorityLevel priority, const char *format, ...)
     break;
   case LL_Warning:
     priority_name = "WARNING";
+    output = stderr;
     break;
   case LL_Error:
     priority_name = "ERROR";
+    output = stderr;
     break;
   case LL_Fatal:
     priority_name = "FATAL";
+    output = stderr;
     break;
   default:
     priority_name = "unknown priority";
@@ -420,9 +424,9 @@ BaseLogFile::log_log(LogLogPriorityLevel priority, const char *format, ...)
   gettimeofday(&now, NULL);
   now_f = now.tv_sec + now.tv_usec / 1000000.0f;
 
-  fprintf(stdout, "<%.4f> [%s]: ", now_f, priority_name);
-  vfprintf(stdout, format, args);
-  fflush(stdout);
+  fprintf(output, "<%.4f> [%s]: ", now_f, priority_name);
+  vfprintf(output, format, args);
+  fflush(output);
 
   va_end(args);
 }

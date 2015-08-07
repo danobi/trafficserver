@@ -45,6 +45,7 @@
 #define LOGFILE_SEPARATOR_STRING "_"
 #define LOGFILE_DEFAULT_PERMS (0644)
 #define LOGFILE_ROLL_MAXPATHLEN 4096
+#define BASELOGFILE_DEBUG_MODE 0 // change this to 1 to enable debug messages
 
 typedef enum {
   LL_Debug = 0, // process does not die
@@ -56,13 +57,13 @@ typedef enum {
 
 #define log_log_trace(...)                         \
   do {                                             \
-    if (1)                                         \
+    if (BASELOGFILE_DEBUG_MODE)                    \
       BaseLogFile::log_log(LL_Debug, __VA_ARGS__); \
   } while (0)
 
 #define log_log_error(...)                         \
   do {                                             \
-    if (1)                                         \
+    if (BASELOGFILE_DEBUG_MODE)                    \
       BaseLogFile::log_log(LL_Error, __VA_ARGS__); \
   } while (0)
 
