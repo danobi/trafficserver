@@ -1477,6 +1477,60 @@ bind_outputs(const char *bind_stdout, const char *bind_stderr)
     }
   }
 }
+  
+static void
+setup_bootstrap_diags()
+{
+  diagsConfig = new DiagsConfig(DIAGS_LOG_FILENAME, error_tags, action_tags, false);
+  diags = diagsConfig->diags;
+  diags->prefix_str = "Server ";
+  diags->set_stdout_output(bind_stdout);
+  diags->set_stderr_output(bind_stderr);
+  if (is_debug_tag_set("diags"))
+    diags->dump();
+}
+
+static void
+setup_real_diags_helper()
+{
+  if (diagsConfig) {
+    RecDebugOff();
+    delete (diagsConfig);
+  }
+  diagsConfig = new DiagsConfig(DIAGS_LOG_FILENAME, error_tags, action_tags, true);
+  diags = diagsConfig->diags;
+  RecSetDiags(diags);
+  diags->prefix_str = "Server ";
+  diags->set_stdout_output(bind_stdout);
+  diags->set_stderr_output(bind_stderr);
+  if (is_debug_tag_set("diags"))
+    diags->dump();
+}
+
+static void
+setup_real_diags()
+{
+  struct stat s_out;
+  struct stat s_err;
+
+  // check the owner of the outputlog file
+  // if the owner is root, then we must elevate our permissions or else we don't get diagnostic logging
+  //
+  // if elevate fails, it means that the user has run ATS as a priviledged user in the past
+  // and is now running ATS unpriviledged
+  if (stat(bind_stdout, &s_out) == -1) 
+    Debug("log", "Could not stat bind_stdout=%s: %s\n",bind_stdout,strerror(errno));
+  if (stat(bind_stderr, &s_err) == -1) 
+    Debug("log", "Could not stat bind_stderr=%s: %s\n",bind_stderr,strerror(errno));
+  if (s_out.st_uid == 0 || s_err.st_uid == 0) {
+    ElevateAccess access;
+    Debug("log", "Elevating to root so we can work on outputlog");
+    setup_real_diags_helper();
+  } else {
+    Debug("log", "Not elevating to access outputlog");
+    setup_real_diags_helper();
+  }
+}
 
 //
 // Main
@@ -1537,14 +1591,8 @@ main(int /* argc ATS_UNUSED */, const char **argv)
   // re-start it again, TS will crash.
   // This is also needed for log rotation - setting up the file can cause privilege
   // related errors and if diagsConfig isn't get up yet that will crash on a NULL pointer.
-  diagsConfig = new DiagsConfig(DIAGS_LOG_FILENAME, error_tags, action_tags, false);
-  diags = diagsConfig->diags;
-  diags->prefix_str = "Server ";
-  diags->set_stdout_output(bind_stdout);
-  diags->set_stderr_output(bind_stderr);
-  if (is_debug_tag_set("diags"))
-    diags->dump();
-
+  setup_bootstrap_diags();
+  
   // Bind stdout and stderr to specified switches
   // Still needed despite the set_std{err,out}_output() calls later since there are
   // fprintf's before those calls
@@ -1619,18 +1667,7 @@ main(int /* argc ATS_UNUSED */, const char **argv)
   main_thread->set_specific();
 
   // Re-initialize diagsConfig based on records.config configuration
-  if (diagsConfig) {
-    RecDebugOff();
-    delete (diagsConfig);
-  }
-  diagsConfig = new DiagsConfig(DIAGS_LOG_FILENAME, error_tags, action_tags, true);
-  diags = diagsConfig->diags;
-  RecSetDiags(diags);
-  diags->prefix_str = "Server ";
-  diags->set_stdout_output(bind_stdout);
-  diags->set_stderr_output(bind_stderr);
-  if (is_debug_tag_set("diags"))
-    diags->dump();
+  setup_real_diags(); 
 
   DebugCapabilities("privileges"); // Can do this now, logging is up.
 

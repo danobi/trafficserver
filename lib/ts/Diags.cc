@@ -821,9 +821,6 @@ Diags::set_stdout_output(const char *_bind_stdout)
     stdout_log = NULL;
   }
 
-  // get root
-  ElevateAccess elevate;
-
   // create backing BaseLogFile for stdout
   stdout_log = new BaseLogFile(_bind_stdout);
 
@@ -860,8 +857,6 @@ Diags::set_stderr_output(const char *_bind_stderr)
     delete stderr_log;
     stderr_log = NULL;
   }
-  // get root
-  ElevateAccess elevate;
 
   // create backing BaseLogFile for stdout
   stderr_log = new BaseLogFile(_bind_stderr);
@@ -915,4 +910,37 @@ Diags::rebind_stderr(int new_fd)
     return true;
   }
   return false;
+}
+
+void 
+Diags::chown_stdoutlog_to(struct passwd *pwd)
+{
+  if (pwd && stdout_log) {
+    if (chown(stdout_log->get_name(), pwd->pw_uid, -1) == -1)
+      fprintf(stdout, "[Warning]: TS unable to chown owner of stdout_log to uid=%d: %s\n", pwd->pw_uid, strerror(errno));
+  } else {
+    fprintf(stdout, "[Warning]: TS unable to chown owner of stdout_log\n");
+  }
+}
+
+void 
+Diags::chown_stderrlog_to(struct passwd *pwd)
+{
+  if (pwd && stderr_log) {
+    if (chown(stderr_log->get_name(), pwd->pw_uid, -1) == -1)
+      fprintf(stdout, "[Warning]: TS unable to chown owner of stderr_log to uid=%d: %s\n", pwd->pw_uid, strerror(errno));
+  } else {
+    fprintf(stdout, "[Warning]: TS unable to chown owner of stderr_log\n");
+  }
+}
+
+void 
+Diags::chown_diagslog_to(struct passwd *pwd)
+{
+  if (pwd && diags_log) {
+    if (chown(diags_log->get_name(), pwd->pw_uid, -1) == -1)
+      fprintf(stdout, "[Warning]: TS unable to chown owner of diags_log to uid=%d: %s\n", pwd->pw_uid, strerror(errno));
+  } else {
+    fprintf(stdout, "[Warning]: TS unable to chown owner of diags_log\n");
+  }
 }

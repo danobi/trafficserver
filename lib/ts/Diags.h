@@ -251,6 +251,10 @@ public:
   bool set_stdout_output(const char *_bind_stdout);
   bool set_stderr_output(const char *_bind_stderr);
 
+  void chown_stdoutlog_to(struct passwd *pwd);
+  void chown_stderrlog_to(struct passwd *pwd);
+  void chown_diagslog_to(struct passwd *pwd);
+
   const char *base_debug_tags;  // internal copy of default debug tags
   const char *base_action_tags; // internal copy of default action tags
 

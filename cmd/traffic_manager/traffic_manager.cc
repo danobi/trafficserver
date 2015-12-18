@@ -100,6 +100,51 @@ static void SignalAlrmHandler(int sig);
 static volatile int sigHupNotifier = 0;
 static void SigChldHandler(int sig);
 
+
+static void
+setup_bootstrap_diags()
+{
+  diagsConfig = new DiagsConfig(DIAGS_LOG_FILENAME, debug_tags, action_tags, /* no diagnostic log */ false);
+  diags = diagsConfig->diags;
+  diags->set_stdout_output(bind_stdout);
+  diags->set_stderr_output(bind_stderr);
+  diags->prefix_str = "Manager ";
+}
+
+static void
+setup_real_diags_helper()
+{
+  diagsConfig = new DiagsConfig(DIAGS_LOG_FILENAME, debug_tags, action_tags, /* create a diagnostic log */ true);
+  diags = diagsConfig->diags;
+  RecSetDiags(diags);
+  diags->prefix_str = "Manager ";
+  diags->set_stdout_output(bind_stdout);
+  diags->set_stderr_output(bind_stderr);
+}
+
+static void
+setup_real_diags()
+{
+  struct stat s_out;
+  struct stat s_err;
+
+  // check the owner of the outputlog file
+  // if the owner is root, then we must elevate our permissions or else we don't get diagnostic logging
+  //
+  // if elevate fails, it means that the user has run ATS as a priviledged user in the past
+  // and is now running ATS unpriviledged
+  if (stat(bind_stdout, &s_out) == -1) 
+    Debug("log", "Could not stat bind_stdout=%s: %s\n",bind_stdout,strerror(errno));
+  if (stat(bind_stderr, &s_err) == -1) 
+    Debug("log", "Could not stat bind_stderr=%s: %s\n",bind_stderr,strerror(errno));
+  if (s_out.st_uid == 0 || s_err.st_uid == 0) {
+    ElevateAccess access;
+    setup_real_diags_helper();
+  } else
+    setup_real_diags_helper();
+}
+
+
 static void
 rotateLogs()
 {
@@ -491,11 +536,8 @@ main(int argc, const char **argv)
 
   // Bootstrap the Diags facility so that we can use it while starting
   //  up the manager
-  diagsConfig = new DiagsConfig(DIAGS_LOG_FILENAME, debug_tags, action_tags, false);
-  diags = diagsConfig->diags;
-  diags->set_stdout_output(bind_stdout);
-  diags->set_stderr_output(bind_stderr);
-  diags->prefix_str = "Manager ";
+  setup_bootstrap_diags();
+  Debug("log", "After setup_bootstrap_diags()");
 
   RecLocalInit();
   LibRecordsConfigInit();
@@ -537,12 +579,8 @@ main(int argc, const char **argv)
   }
   // INKqa11968: need to set up callbacks and diags data structures
   // using configuration in records.config
-  diagsConfig = new DiagsConfig(DIAGS_LOG_FILENAME, debug_tags, action_tags, true);
-  diags = diagsConfig->diags;
-  RecSetDiags(diags);
-  diags->prefix_str = "Manager ";
-  diags->set_stdout_output(bind_stdout);
-  diags->set_stderr_output(bind_stderr);
+  setup_real_diags();
+  Debug("log", "After setup_real_diags()");
 
   if (is_debug_tag_set("diags"))
     diags->dump();
