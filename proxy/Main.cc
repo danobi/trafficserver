@@ -1477,7 +1477,7 @@ bind_outputs(const char *bind_stdout, const char *bind_stderr)
     }
   }
 }
-  
+
 static void
 setup_bootstrap_diags()
 {
@@ -1518,10 +1518,10 @@ setup_real_diags()
   //
   // if elevate fails, it means that the user has run ATS as a priviledged user in the past
   // and is now running ATS unpriviledged
-  if (stat(bind_stdout, &s_out) == -1) 
-    Debug("log", "Could not stat bind_stdout=%s: %s\n",bind_stdout,strerror(errno));
-  if (stat(bind_stderr, &s_err) == -1) 
-    Debug("log", "Could not stat bind_stderr=%s: %s\n",bind_stderr,strerror(errno));
+  if (stat(bind_stdout, &s_out) == -1)
+    Debug("log", "Could not stat bind_stdout=%s: %s\n", bind_stdout, strerror(errno));
+  if (stat(bind_stderr, &s_err) == -1)
+    Debug("log", "Could not stat bind_stderr=%s: %s\n", bind_stderr, strerror(errno));
   if (s_out.st_uid == 0 || s_err.st_uid == 0) {
     ElevateAccess access;
     Debug("log", "Elevating to root so we can work on outputlog");
@@ -1592,7 +1592,7 @@ main(int /* argc ATS_UNUSED */, const char **argv)
   // This is also needed for log rotation - setting up the file can cause privilege
   // related errors and if diagsConfig isn't get up yet that will crash on a NULL pointer.
   setup_bootstrap_diags();
-  
+
   // Bind stdout and stderr to specified switches
   // Still needed despite the set_std{err,out}_output() calls later since there are
   // fprintf's before those calls
@@ -1667,7 +1667,7 @@ main(int /* argc ATS_UNUSED */, const char **argv)
   main_thread->set_specific();
 
   // Re-initialize diagsConfig based on records.config configuration
-  setup_real_diags(); 
+  setup_real_diags();
 
   DebugCapabilities("privileges"); // Can do this now, logging is up.
 

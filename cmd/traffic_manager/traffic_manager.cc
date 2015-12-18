@@ -133,10 +133,10 @@ setup_real_diags()
   //
   // if elevate fails, it means that the user has run ATS as a priviledged user in the past
   // and is now running ATS unpriviledged
-  if (stat(bind_stdout, &s_out) == -1) 
-    Debug("log", "Could not stat bind_stdout=%s: %s\n",bind_stdout,strerror(errno));
-  if (stat(bind_stderr, &s_err) == -1) 
-    Debug("log", "Could not stat bind_stderr=%s: %s\n",bind_stderr,strerror(errno));
+  if (stat(bind_stdout, &s_out) == -1)
+    Debug("log", "Could not stat bind_stdout=%s: %s\n", bind_stdout, strerror(errno));
+  if (stat(bind_stderr, &s_err) == -1)
+    Debug("log", "Could not stat bind_stderr=%s: %s\n", bind_stderr, strerror(errno));
   if (s_out.st_uid == 0 || s_err.st_uid == 0) {
     ElevateAccess access;
     setup_real_diags_helper();

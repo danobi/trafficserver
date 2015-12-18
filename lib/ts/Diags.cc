@@ -912,7 +912,7 @@ Diags::rebind_stderr(int new_fd)
   return false;
 }
 
-void 
+void
 Diags::chown_stdoutlog_to(struct passwd *pwd)
 {
   if (pwd && stdout_log) {
@@ -923,7 +923,7 @@ Diags::chown_stdoutlog_to(struct passwd *pwd)
   }
 }
 
-void 
+void
 Diags::chown_stderrlog_to(struct passwd *pwd)
 {
   if (pwd && stderr_log) {
@@ -934,7 +934,7 @@ Diags::chown_stderrlog_to(struct passwd *pwd)
   }
 }
 
-void 
+void
 Diags::chown_diagslog_to(struct passwd *pwd)
 {
   if (pwd && diags_log) {
