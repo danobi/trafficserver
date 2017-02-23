@@ -46,6 +46,7 @@ using namespace EsiLib;
 
 #define MAX_FILE_COUNT 30
 #define MAX_QUERY_LENGTH 3000
+#define HTTP_IMMUTABLE "immutable"
 
 int arg_idx;
 static string SIG_KEY_NAME;
@@ -201,6 +202,7 @@ static bool writeErrorResponse(InterceptData &int_data, int &n_bytes_written);
 static bool writeStandardHeaderFields(InterceptData &int_data, int &n_bytes_written);
 static void prepareResponse(InterceptData &int_data, ByteBlockList &body_blocks, string &resp_header_fields);
 static bool getContentType(TSMBuffer bufp, TSMLoc hdr_loc, string &resp_header_fields);
+static bool isCacheImmutable(TSMBuffer bufp, TSMLoc hdr_loc);
 static int getMaxAge(TSMBuffer bufp, TSMLoc hdr_loc);
 static bool getDefaultBucket(TSHttpTxn txnp, TSMBuffer bufp, TSMLoc hdr_obj, ClientRequest &creq);
 
@@ -786,6 +788,8 @@ prepareResponse(InterceptData &int_data, ByteBlockList &body_blocks, string &res
     bool got_max_age = false;
     time_t expires_time;
     bool got_expires_time = false;
+    // cache_immutable is flipped to false if *any* of the requested documents does *not* have the immutable header
+    bool cache_immutable = true;
     int num_headers       = HEADER_WHITELIST.size();
     int flags_list[num_headers];
 
@@ -828,6 +832,10 @@ prepareResponse(InterceptData &int_data, ByteBlockList &body_blocks, string &res
           TSHandleMLocRelease(resp_data.bufp, resp_data.hdr_loc, field_loc);
         }
 
+        // handle cache-control immutable case (see https://tools.ietf.org/html/draft-mcmanus-immutable-01 )
+        if (!isCacheImmutable(resp_data.bufp, resp_data.hdr_loc))
+          cache_immutable = false;
+
         for (int i = 0; i < num_headers; i++) {
           if (flags_list[i]) {
             continue;
@@ -869,13 +877,19 @@ prepareResponse(InterceptData &int_data, ByteBlockList &body_blocks, string &res
     }
     if (int_data.creq.status == TS_HTTP_STATUS_OK) {
       if (find(HEADER_WHITELIST.begin(), HEADER_WHITELIST.end(), TS_MIME_FIELD_CACHE_CONTROL) == HEADER_WHITELIST.end()) {
+        char line_buf[128];
+        int line_size;
         if (got_max_age && max_age > 0) {
-          char line_buf[128];
-          int line_size = sprintf(line_buf, "Cache-Control: max-age=%d, public\r\n", max_age);
-          resp_header_fields.append(line_buf, line_size);
+          line_size = sprintf(line_buf, "Cache-Control: max-age=%d, public", max_age);
         } else {
-          resp_header_fields.append("Cache-Control: max-age=315360000, public\r\n"); // set 10-years max-age
+          // set 10-years max-age
+          line_size = sprintf(line_buf, "Cache-Control: max-age=315360000, public");
         }
+        if (cache_immutable) {
+          line_size += sprintf(line_buf + line_size, ", %s", HTTP_IMMUTABLE);
+        }
+        line_size += sprintf(line_buf + line_size, "\r\n");
+        resp_header_fields.append(line_buf, line_size);
       }
       if (find(HEADER_WHITELIST.begin(), HEADER_WHITELIST.end(), TS_MIME_FIELD_EXPIRES) == HEADER_WHITELIST.end()) {
         if (got_expires_time) {
@@ -902,6 +916,27 @@ prepareResponse(InterceptData &int_data, ByteBlockList &body_blocks, string &res
       resp_header_fields.append(GZIP_ENCODING_FIELD, GZIP_ENCODING_FIELD_SIZE);
     }
   }
+}
+
+static bool
+isCacheImmutable(TSMBuffer bufp, TSMLoc hdr_loc)
+{
+  bool retval = false;
+  TSMLoc field_loc = TSMimeHdrFieldFind(bufp, hdr_loc, TS_MIME_FIELD_CACHE_CONTROL, TS_MIME_LEN_CACHE_CONTROL);
+  if (field_loc != TS_NULL_MLOC) {
+    int n_values = TSMimeHdrFieldValuesCount(bufp, hdr_loc, field_loc);
+    if ((n_values != TS_ERROR) && (n_values > 0)) {
+      for (int i = 0; i < n_values; i++) {
+        value = TSMimeHdrFieldValueStringGet(bufp, hdr_loc, field_loc, i, &value_len);
+        if (strncmp(value, HTTP_IMMUTABLE, strlen(HTTP_IMMUTABLE)) == 0) {
+          retval = true;
+          break;
+        }
+      }
+    }
+    TSHandleMLocRelease(bufp, hdr_loc, field_loc);
+  }
+  return retval;
 }
 
 static bool
