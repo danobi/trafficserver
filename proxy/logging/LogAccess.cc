@@ -210,6 +210,8 @@ LOG_ACCESS_DEFAULT_FIELD(marshal_client_req_id, DEFAULT_INT_FIELD)
 
 LOG_ACCESS_DEFAULT_FIELD(marshal_client_req_uuid, DEFAULT_STR_FIELD)
 
+LOG_ACCESS_DEFAULT_FIELD(marshal_client_req_headers, DEFAULT_STR_FIELD)
+
 /*-------------------------------------------------------------------------
   -------------------------------------------------------------------------*/
 
@@ -238,6 +240,8 @@ LOG_ACCESS_DEFAULT_FIELD(marshal_proxy_resp_status_code, DEFAULT_INT_FIELD)
   -------------------------------------------------------------------------*/
 
 LOG_ACCESS_DEFAULT_FIELD(marshal_proxy_resp_header_len, DEFAULT_INT_FIELD)
+
+LOG_ACCESS_DEFAULT_FIELD(marshal_proxy_resp_headers, DEFAULT_STR_FIELD)
 
 /*-------------------------------------------------------------------------
   -------------------------------------------------------------------------*/
@@ -278,6 +282,8 @@ LOG_ACCESS_DEFAULT_FIELD(marshal_proxy_req_server_ip, DEFAULT_IP_FIELD)
   -------------------------------------------------------------------------*/
 
 LOG_ACCESS_DEFAULT_FIELD(marshal_proxy_req_server_port, DEFAULT_INT_FIELD)
+
+LOG_ACCESS_DEFAULT_FIELD(marshal_proxy_req_server_headers, DEFAULT_STR_FIELD)
 
 /*-------------------------------------------------------------------------
   -------------------------------------------------------------------------*/
@@ -347,6 +353,8 @@ LOG_ACCESS_DEFAULT_FIELD(marshal_server_resp_content_len, DEFAULT_INT_FIELD)
   -------------------------------------------------------------------------*/
 
 LOG_ACCESS_DEFAULT_FIELD(marshal_server_resp_header_len, DEFAULT_INT_FIELD)
+
+LOG_ACCESS_DEFAULT_FIELD(marshal_server_resp_headers, DEFAULT_STR_FIELD)
 
 /*-------------------------------------------------------------------------
   This case is special because it really stores 2 ints.

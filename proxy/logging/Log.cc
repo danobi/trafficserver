@@ -538,6 +538,11 @@ Log::init_fields()
   global_field_list.add(field, false);
   ink_hash_table_insert(field_symbol_hash, "cruuid", field);
 
+  field = new LogField("client_req_headers", "crh", LogField::STRING, &LogAccess::marshal_client_req_headers,
+                       (LogField::UnmarshalFunc)&LogAccess::unmarshal_str);
+  global_field_list.add(field, false);
+  ink_hash_table_insert(field_symbol_hash, "crh", field);
+
   // proxy -> client fields
   field = new LogField("proxy_resp_content_type", "psct", LogField::STRING, &LogAccess::marshal_proxy_resp_content_type,
                        (LogField::UnmarshalFunc)&LogAccess::unmarshal_str);
@@ -573,6 +578,11 @@ Log::init_fields()
                        &LogAccess::unmarshal_finish_status, make_alias_map(finish_status_map));
   global_field_list.add(field, false);
   ink_hash_table_insert(field_symbol_hash, "pfsc", field);
+
+  field = new LogField("proxy_resp_headers", "prh", LogField::STRING, &LogAccess::marshal_proxy_resp_headers,
+                       (LogField::UnmarshalFunc)&LogAccess::unmarshal_str);
+  global_field_list.add(field, false);
+  ink_hash_table_insert(field_symbol_hash, "prh", field);
 
   Ptr<LogFieldAliasTable> cache_code_map = make_ptr(new LogFieldAliasTable);
   cache_code_map->init(
@@ -656,6 +666,11 @@ Log::init_fields()
                        &LogAccess::unmarshal_int_to_str);
   global_field_list.add(field, false);
   ink_hash_table_insert(field_symbol_hash, "pqsp", field);
+
+  field = new LogField("proxy_req_server_headers", "prsh", LogField::sINT, &LogAccess::marshal_proxy_req_server_headers,
+                       (LogField::UnmarshalFunc)&LogAccess::unmarshal_str);
+  global_field_list.add(field, false);
+  ink_hash_table_insert(field_symbol_hash, "prsh", field);
 
   Ptr<LogFieldAliasTable> hierarchy_map = make_ptr(new LogFieldAliasTable);
   hierarchy_map->init(
@@ -756,6 +771,11 @@ Log::init_fields()
                        &LogAccess::unmarshal_int_to_str);
   global_field_list.add(field, false);
   ink_hash_table_insert(field_symbol_hash, "sts", field);
+
+  field = new LogField("server_response_headers", "srh", LogField::sINT, &LogAccess::marshal_server_resp_headers,
+                       (LogField::UnmarshalFunc)&LogAccess::unmarshal_str);
+  global_field_list.add(field, false);
+  ink_hash_table_insert(field_symbol_hash, "srh", field);
 
   field = new LogField("server_transact_count", "sstc", LogField::sINT, &LogAccess::marshal_server_transact_count,
                        &LogAccess::unmarshal_int_to_str);

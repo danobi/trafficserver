@@ -81,6 +81,7 @@ public:
   virtual int marshal_client_finish_status_code(char *);     // INT
   virtual int marshal_client_req_id(char *);                 // INT
   virtual int marshal_client_req_uuid(char *);               // STR
+  virtual int marshal_client_req_headers(char *);            // STR
 
   //
   // proxy -> client fields
@@ -90,6 +91,7 @@ public:
   virtual int marshal_proxy_resp_content_len(char *);   // INT
   virtual int marshal_proxy_resp_squid_len(char *);     // INT
   virtual int marshal_proxy_resp_status_code(char *);   // INT
+  virtual int marshal_proxy_resp_headers(char *);       // STR
   virtual int marshal_proxy_finish_status_code(char *); // INT
   virtual int marshal_cache_result_code(char *);        // INT
   virtual int marshal_cache_hit_miss(char *);           // INT
@@ -97,15 +99,16 @@ public:
   //
   // proxy -> server fields
   //
-  virtual int marshal_proxy_req_header_len(char *);  // INT
-  virtual int marshal_proxy_req_content_len(char *); // INT
-  virtual int marshal_proxy_req_squid_len(char *);   // INT
-  virtual int marshal_proxy_req_server_name(char *); // STR
-  virtual int marshal_proxy_req_server_ip(char *);   // INT
-  virtual int marshal_proxy_req_server_port(char *); // INT
-  virtual int marshal_proxy_hierarchy_route(char *); // INT
-  virtual int marshal_proxy_host_port(char *);       // INT
-  virtual int marshal_proxy_req_is_ssl(char *);      // INT
+  virtual int marshal_proxy_req_header_len(char *);     // INT
+  virtual int marshal_proxy_req_content_len(char *);    // INT
+  virtual int marshal_proxy_req_squid_len(char *);      // INT
+  virtual int marshal_proxy_req_server_name(char *);    // STR
+  virtual int marshal_proxy_req_server_ip(char *);      // INT
+  virtual int marshal_proxy_req_server_port(char *);    // INT
+  virtual int marshal_proxy_req_server_headers(char *); // STR
+  virtual int marshal_proxy_hierarchy_route(char *);    // INT
+  virtual int marshal_proxy_host_port(char *);          // INT
+  virtual int marshal_proxy_req_is_ssl(char *);         // INT
 
   //
   // server -> proxy fields
@@ -119,6 +122,7 @@ public:
   virtual int marshal_server_resp_http_version(char *); // INT
   virtual int marshal_server_resp_time_ms(char *);      // INT
   virtual int marshal_server_resp_time_s(char *);       // INT
+  virtual int marshal_server_resp_headers(char *);      // STR
   virtual int marshal_server_transact_count(char *);    // INT
   virtual int marshal_server_connect_attempts(char *);  // INT
 

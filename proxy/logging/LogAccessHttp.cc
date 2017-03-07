@@ -819,6 +819,20 @@ LogAccessHttp::marshal_client_security_cipher_suite(char *buf)
   return round_len;
 }
 
+int
+LogAccessHttp::marshal_client_req_headers(char * buf)
+{
+  char _buf[2048];
+  int bufindex, dumpoffset;
+
+  if (buf) {
+    m_client_request->print(_buf, sizeof(_buf), &bufindex, &dumpoffset);
+    marshal_str(buf, _buf, bufindex);
+  }
+
+  return bufindex;
+}
+
 /*-------------------------------------------------------------------------
   -------------------------------------------------------------------------*/
 
@@ -969,6 +983,21 @@ LogAccessHttp::marshal_cache_hit_miss(char *buf)
   return INK_MIN_ALIGN;
 }
 
+int
+LogAccessHttp::marshal_proxy_resp_headers(char * buf)
+{
+  char _buf[2048];
+  int bufindex, dumpoffset;
+
+  if (buf) {
+    m_proxy_response->print(_buf, sizeof(_buf), &bufindex, &dumpoffset);
+    marshal_str(buf, _buf, bufindex);
+  }
+
+  return bufindex;
+}
+
+
 /*-------------------------------------------------------------------------
   -------------------------------------------------------------------------*/
 
@@ -1046,6 +1075,20 @@ LogAccessHttp::marshal_proxy_req_server_port(char *buf)
     marshal_int(buf, port);
   }
   return INK_MIN_ALIGN;
+}
+
+int
+LogAccessHttp::marshal_proxy_req_server_headers(char * buf)
+{
+  char _buf[2048];
+  int bufindex, dumpoffset;
+
+  if (buf) {
+    m_proxy_request->print(_buf, sizeof(_buf), &bufindex, &dumpoffset);
+    marshal_str(buf, _buf, bufindex);
+  }
+
+  return bufindex;
 }
 
 /*-------------------------------------------------------------------------
@@ -1221,6 +1264,20 @@ LogAccessHttp::marshal_server_resp_time_s(char *buf)
     marshal_int(buf, val);
   }
   return INK_MIN_ALIGN;
+}
+
+int
+LogAccessHttp::marshal_server_resp_headers(char * buf)
+{
+  char _buf[2048];
+  int bufindex, dumpoffset;
+
+  if (buf) {
+    m_server_response->print(_buf, sizeof(_buf), &bufindex, &dumpoffset);
+    marshal_str(buf, _buf, bufindex);
+  }
+
+  return bufindex;
 }
 
 /*-------------------------------------------------------------------------

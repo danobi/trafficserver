@@ -196,6 +196,7 @@ public:
   inkcoreapi virtual int marshal_client_finish_status_code(char *);     // INT
   inkcoreapi virtual int marshal_client_req_id(char *);                 // INT
   inkcoreapi virtual int marshal_client_req_uuid(char *);               // STR
+  inkcoreapi virtual int marshal_client_req_headers(char *);            // STR
 
   //
   // proxy -> client fields
@@ -205,6 +206,7 @@ public:
   inkcoreapi virtual int marshal_proxy_resp_content_len(char *);   // INT
   inkcoreapi virtual int marshal_proxy_resp_status_code(char *);   // INT
   inkcoreapi virtual int marshal_proxy_resp_header_len(char *);    // INT
+  inkcoreapi virtual int marshal_proxy_resp_headers(char *);       // STR
   inkcoreapi virtual int marshal_proxy_finish_status_code(char *); // INT
   inkcoreapi virtual int marshal_cache_result_code(char *);        // INT
   inkcoreapi virtual int marshal_proxy_host_port(char *);          // INT
@@ -213,16 +215,17 @@ public:
   //
   // proxy -> server fields
   //
-  inkcoreapi virtual int marshal_proxy_req_header_len(char *);  // INT
-  inkcoreapi virtual int marshal_proxy_req_squid_len(char *);   // INT
-  inkcoreapi virtual int marshal_proxy_req_content_len(char *); // INT
-  inkcoreapi virtual int marshal_proxy_req_server_name(char *); // STR
-  inkcoreapi virtual int marshal_proxy_req_server_ip(char *);   // INT
-  inkcoreapi virtual int marshal_proxy_req_server_port(char *); // INT
-  inkcoreapi virtual int marshal_proxy_hierarchy_route(char *); // INT
-  inkcoreapi virtual int marshal_proxy_host_name(char *);       // STR
-  inkcoreapi virtual int marshal_proxy_host_ip(char *);         // STR
-  inkcoreapi virtual int marshal_proxy_req_is_ssl(char *);      // INT
+  inkcoreapi virtual int marshal_proxy_req_header_len(char *);     // INT
+  inkcoreapi virtual int marshal_proxy_req_squid_len(char *);      // INT
+  inkcoreapi virtual int marshal_proxy_req_content_len(char *);    // INT
+  inkcoreapi virtual int marshal_proxy_req_server_name(char *);    // STR
+  inkcoreapi virtual int marshal_proxy_req_server_ip(char *);      // INT
+  inkcoreapi virtual int marshal_proxy_req_server_port(char *);    // INT
+  inkcoreapi virtual int marshal_proxy_req_server_headers(char *); // STR
+  inkcoreapi virtual int marshal_proxy_hierarchy_route(char *);    // INT
+  inkcoreapi virtual int marshal_proxy_host_name(char *);          // STR
+  inkcoreapi virtual int marshal_proxy_host_ip(char *);            // STR
+  inkcoreapi virtual int marshal_proxy_req_is_ssl(char *);         // INT
 
   //
   // server -> proxy fields
@@ -233,6 +236,7 @@ public:
   inkcoreapi virtual int marshal_server_resp_squid_len(char *);    // INT
   inkcoreapi virtual int marshal_server_resp_content_len(char *);  // INT
   inkcoreapi virtual int marshal_server_resp_header_len(char *);   // INT
+  inkcoreapi virtual int marshal_server_resp_headers(char *);      // STR
   inkcoreapi virtual int marshal_server_resp_http_version(char *); // INT
   inkcoreapi virtual int marshal_server_resp_time_ms(char *);      // INT
   inkcoreapi virtual int marshal_server_resp_time_s(char *);       // INT
