@@ -823,7 +823,7 @@ int
 LogAccessHttp::marshal_client_req_headers(char * buf)
 {
   char _buf[2048];
-  int bufindex, dumpoffset;
+  int bufindex = 0, dumpoffset = 0;
 
   if (buf) {
     m_client_request->print(_buf, sizeof(_buf), &bufindex, &dumpoffset);
@@ -987,7 +987,7 @@ int
 LogAccessHttp::marshal_proxy_resp_headers(char * buf)
 {
   char _buf[2048];
-  int bufindex, dumpoffset;
+  int bufindex = 0, dumpoffset = 0;
 
   if (buf) {
     m_proxy_response->print(_buf, sizeof(_buf), &bufindex, &dumpoffset);
@@ -1081,7 +1081,7 @@ int
 LogAccessHttp::marshal_proxy_req_server_headers(char * buf)
 {
   char _buf[2048];
-  int bufindex, dumpoffset;
+  int bufindex = 0, dumpoffset = 0;
 
   if (buf) {
     m_proxy_request->print(_buf, sizeof(_buf), &bufindex, &dumpoffset);
@@ -1270,7 +1270,7 @@ int
 LogAccessHttp::marshal_server_resp_headers(char * buf)
 {
   char _buf[2048];
-  int bufindex, dumpoffset;
+  int bufindex = 0, dumpoffset = 0;
 
   if (buf) {
     m_server_response->print(_buf, sizeof(_buf), &bufindex, &dumpoffset);
