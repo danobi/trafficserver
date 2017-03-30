@@ -822,15 +822,18 @@ LogAccessHttp::marshal_client_security_cipher_suite(char *buf)
 int
 LogAccessHttp::marshal_client_req_headers(char * buf)
 {
-  char _buf[2048];
   int bufindex = 0, dumpoffset = 0;
+  int headers_len = m_client_request->length_get() + 1;
+  while (headers_len % INK_MIN_ALIGN != 0) headers_len++;
 
   if (buf) {
-    m_client_request->print(_buf, sizeof(_buf), &bufindex, &dumpoffset);
-    marshal_str(buf, _buf, bufindex);
+    char _buf[headers_len];
+    memset(_buf, 0, headers_len);
+    m_client_request->print(_buf, headers_len, &bufindex, &dumpoffset);
+    marshal_str(buf, _buf, headers_len);
   }
 
-  return bufindex;
+  return headers_len;
 }
 
 /*-------------------------------------------------------------------------
@@ -986,15 +989,18 @@ LogAccessHttp::marshal_cache_hit_miss(char *buf)
 int
 LogAccessHttp::marshal_proxy_resp_headers(char * buf)
 {
-  char _buf[2048];
   int bufindex = 0, dumpoffset = 0;
+  int headers_len = m_proxy_response->length_get() + 1;
+  while (headers_len % INK_MIN_ALIGN != 0) headers_len++;
 
   if (buf) {
-    m_proxy_response->print(_buf, sizeof(_buf), &bufindex, &dumpoffset);
-    marshal_str(buf, _buf, bufindex);
+    char _buf[headers_len];
+    memset(_buf, 0, headers_len);
+    m_proxy_response->print(_buf, headers_len, &bufindex, &dumpoffset);
+    marshal_str(buf, _buf, headers_len);
   }
 
-  return bufindex;
+  return headers_len;
 }
 
 
@@ -1080,15 +1086,18 @@ LogAccessHttp::marshal_proxy_req_server_port(char *buf)
 int
 LogAccessHttp::marshal_proxy_req_server_headers(char * buf)
 {
-  char _buf[2048];
   int bufindex = 0, dumpoffset = 0;
+  int headers_len = m_proxy_request->length_get() + 1;
+  while (headers_len % INK_MIN_ALIGN != 0) headers_len++;
 
   if (buf) {
-    m_proxy_request->print(_buf, sizeof(_buf), &bufindex, &dumpoffset);
-    marshal_str(buf, _buf, bufindex);
+    char _buf[headers_len];
+    memset(_buf, 0, headers_len);
+    m_proxy_request->print(_buf, headers_len, &bufindex, &dumpoffset);
+    marshal_str(buf, _buf, headers_len);
   }
 
-  return bufindex;
+  return headers_len;
 }
 
 /*-------------------------------------------------------------------------
@@ -1269,15 +1278,18 @@ LogAccessHttp::marshal_server_resp_time_s(char *buf)
 int
 LogAccessHttp::marshal_server_resp_headers(char * buf)
 {
-  char _buf[2048];
   int bufindex = 0, dumpoffset = 0;
+  int headers_len = m_server_response->length_get() + 1;
+  while (headers_len % INK_MIN_ALIGN != 0) headers_len++;
 
   if (buf) {
-    m_server_response->print(_buf, sizeof(_buf), &bufindex, &dumpoffset);
-    marshal_str(buf, _buf, bufindex);
+    char _buf[headers_len];
+    memset(_buf, 0, headers_len);
+    m_server_response->print(_buf, headers_len, &bufindex, &dumpoffset);
+    marshal_str(buf, _buf, headers_len);
   }
 
-  return bufindex;
+  return headers_len;
 }
 
 /*-------------------------------------------------------------------------
